@@ -1,0 +1,7 @@
+.particle {
+  position: absolute;
+  width: 30px; /* Adjust the size of the particle */
+  height: 30px; /* Adjust the size of the particle */
+  pointer-events: none; /* Prevent the particle from blocking interactions */
+  transition: transform 0.2s ease; /* Smooth movement */
+}

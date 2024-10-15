@@ -1,0 +1,6 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Prevents the scrollbar */
+    height: 100%; /* Ensures the content takes up full height */
+  }
