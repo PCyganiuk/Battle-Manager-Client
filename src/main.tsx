@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
+import App from './Components/App/App.tsx'
 import './index.css'
 import { createTheme, ThemeProvider } from '@mui/material'
 
@@ -27,7 +27,7 @@ const theme = createTheme({
           textTransform: 'none',                        // Disable uppercase text
           fontSize: '16px',                             // Adjust font size
           '&:hover': {
-            backgroundColor: 'rgba(255, 255, 255, 0.3)', // Darken slightly on hover
+            backgroundColor: 'rgba(130, 255, 255, 0.3)', // Darken slightly on hover
             backdropFilter: 'blur(5px)',                // Increase blur on hover
           },
         },

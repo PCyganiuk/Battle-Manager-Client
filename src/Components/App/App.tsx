@@ -1,5 +1,7 @@
 import { Button, Container, Paper, Typography, Box } from "@mui/material"
 import './App.css';
+import Login from '../Login/Login';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from "react";
 import particleImage from "/assets/smolbartek.png";
 
@@ -17,9 +19,13 @@ const Particle: React.FC<{ x: number; y: number }> = ({ x, y }) => {
   );
 };
 
-function App() {
-
+const Home = () => {
+  const navigate = useNavigate();
   const [mousePosition, setMousePosition] = useState({x: 0, y: 0});
+
+  const goToLogin = () => {
+    navigate('/login');
+  }
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
@@ -36,8 +42,9 @@ function App() {
 
 
   return <Box sx={{
-    backgroundImage: 'url(/assets/bg-home.png)',
-    backgroundPosition: "center"
+    backgroundImage: 'url(/assets/bg-home.png)', 
+    backgroundPosition: "center",
+    backgroundSize: "cover"
   }}>
     <Particle x={mousePosition.x} y={mousePosition.y}/>
   <Container sx={{
@@ -67,15 +74,15 @@ function App() {
     </Paper>
     <Box
         sx={{
-          display: "flex", // Places buttons side by side
-          gap: 20, // Adds space between buttons
-          marginTop: 1, // Adds space between Paper and Buttons
+          display: "flex",
+          gap: 20,
+          marginTop: 1,
         }}
       >
-        <Button variant="contained" color="secondary" sx={{width: "200px", borderRadius: "20px", backdropFilter: 'blur(10px)',textEmphasisColor: "grey"}}>
+        <Button variant="contained" color="primary" sx={{width: "200px", borderRadius: "20px", backdropFilter: 'blur(10px)',textEmphasisColor: "grey",'&:hover': {color: "black",} }}>
           Register
         </Button>
-        <Button variant="outlined" color="primary" sx={{width: "200px", borderRadius: "20px"}}>
+        <Button variant="outlined" color="primary" sx={{width: "200px", borderRadius: "20px"}} onClick={goToLogin}>
           Login
         </Button>
     </Box>
@@ -83,4 +90,15 @@ function App() {
   </Box>;
 }
 
-export default App
+const App = () => {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+      </Routes>
+    </Router>
+  );
+};
+
+export default App;
