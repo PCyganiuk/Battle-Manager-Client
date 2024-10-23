@@ -1,10 +1,13 @@
-import { Button, Container, Paper, Typography, Box } from "@mui/material"
+import { Button, Container, Paper, Box } from "@mui/material"
 import './App.css';
 import Login from '../Login/Login';
+import GameHub from '../GameHub/GameHub';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from "react";
 import particleImage from "/assets/smolbartek.png";
+import greyLogo from "/assets/logo-grey.png";
 
+/*
 const Particle: React.FC<{ x: number; y: number }> = ({ x, y }) => {
   return (
     <img
@@ -18,6 +21,7 @@ const Particle: React.FC<{ x: number; y: number }> = ({ x, y }) => {
     />
   );
 };
+*/
 
 const Home = () => {
   const navigate = useNavigate();
@@ -42,11 +46,13 @@ const Home = () => {
 
 
   return <Box sx={{
-    backgroundImage: 'url(/assets/bg-home.png)', 
-    backgroundPosition: "center",
-    backgroundSize: "cover"
+    backgroundImage: `url(/assets/blob-scene-haikei.svg), url(/assets/bg-home.png)`, // Remove extra quotes
+    backgroundPosition: "center, center",
+    backgroundSize: "cover, cover",
+    height: '100vh',
+    width: '100vw'
   }}>
-    <Particle x={mousePosition.x} y={mousePosition.y}/>
+  {/*  <Particle x={mousePosition.x} y={mousePosition.y}/> */}
   <Container sx={{
     height: "100vh",
     display: "flex",
@@ -55,7 +61,15 @@ const Home = () => {
     alignItems: "center",
     gap: 3
   }}>
-    <Typography variant="h1" sx={{color: "grey", textAlign: "center"}}>Battle Ready?!</Typography>
+    <Box sx={{
+      width: "70vw",
+      justifyContent: "center",
+      overflow: 'hidden',
+      display: 'flex',
+      alignItems: 'center'
+    }}>
+      <img src={greyLogo} style={{maxWidth: '100%',height: 'auto', objectFit: 'contain'}}/>
+    </Box>
     <Paper elevation={7} sx={{
       color: "grey",
       padding: 3,
@@ -96,6 +110,7 @@ const App = () => {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/game-hub" element={<GameHub />} />
       </Routes>
     </Router>
   );
