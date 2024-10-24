@@ -5,6 +5,7 @@ import TuneIcon from '@mui/icons-material/Tune';
 import AddIcon from '@mui/icons-material/Add';
 import JoinInnerIcon from '@mui/icons-material/JoinInner';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import { useNavigate } from "react-router-dom";
 
 interface GameData {
   id: number;
@@ -17,6 +18,11 @@ const GameHub = () => {
   const [value, setValue] = useState(0);
   const [games, setGames] = useState<GameData[]>([]);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+    const runGame = async () => {
+        navigate('/game-map');
+    }
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -161,7 +167,7 @@ const GameHub = () => {
                                 )}
 
                                 <ButtonGroup aria-label="Basic button group">
-                                  <Button color="success"><RocketLaunchIcon/></Button>
+                                  <Button color="success" onClick={runGame}><RocketLaunchIcon/></Button>
                                   <Button><TuneIcon/></Button>
                                   <Button color="error"><DeleteIcon /></Button>
                                 </ButtonGroup>

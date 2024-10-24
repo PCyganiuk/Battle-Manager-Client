@@ -2,12 +2,12 @@ import { Button, Container, Paper, Box } from "@mui/material"
 import './App.css';
 import Login from '../Login/Login';
 import GameHub from '../GameHub/GameHub';
+import GameMap from '../GameMap/GameMap';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from "react";
 import particleImage from "/assets/smolbartek.png";
 import greyLogo from "/assets/logo-grey.png";
 
-/*
 const Particle: React.FC<{ x: number; y: number }> = ({ x, y }) => {
   return (
     <img
@@ -21,7 +21,6 @@ const Particle: React.FC<{ x: number; y: number }> = ({ x, y }) => {
     />
   );
 };
-*/
 
 const Home = () => {
   const navigate = useNavigate();
@@ -52,7 +51,7 @@ const Home = () => {
     height: '100vh',
     width: '100vw'
   }}>
-  {/*  <Particle x={mousePosition.x} y={mousePosition.y}/> */}
+  <Particle x={mousePosition.x} y={mousePosition.y}/>
   <Container sx={{
     height: "100vh",
     display: "flex",
@@ -111,6 +110,7 @@ const App = () => {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/game-hub" element={<GameHub />} />
+        <Route path="/game-map" element={<GameMap />}  />
       </Routes>
     </Router>
   );
