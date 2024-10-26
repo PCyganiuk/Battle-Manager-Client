@@ -102,10 +102,12 @@ const GameHub = () => {
               gap: 2
             }}>
             <Paper
-            elevation={7} sx={{
+              elevation={7} 
+              sx={{
               color: "grey",
               padding: 3,
               width: "70vw",
+              height: "87vh",
               display: "flex",
               flexDirection: "column",
               flexGrow: 1,
@@ -117,10 +119,10 @@ const GameHub = () => {
               backdropFilter: 'blur(5px)',
               boxSizing: 'border-box'
               }}>
-            <Tabs value={value} onChange={handleChange} aria-label="game tabs">
-              <Tab label="DM Games" />
-              <Tab label="Player Games" />
-            </Tabs>
+              <Tabs value={value} onChange={handleChange} aria-label="game tabs">
+                <Tab label="DM Games" />
+                <Tab label="Player Games" />
+              </Tabs>
 
               <Box sx={{ padding: 2 }}>
                 {value === 0 && (
@@ -183,21 +185,23 @@ const GameHub = () => {
             </Paper>
             <Box sx={{
               display:'flex',
+              height: '87vh',
+              width: '5vw',
               flexDirection: 'column',
               gap: 1
             }}>
               <Tooltip title='Create New Game' placement="right" arrow>
-                <Button> <AddIcon/> </Button>
+                <Button sx={{width: '100%', height: '10%'}}> <AddIcon/> </Button>
               </Tooltip>
               <Tooltip title='Join Existing Game' placement="right" arrow>
-                <Button> <JoinInnerIcon/> </Button>
+                <Button sx={{width: '100%', height: '10%'}}> <JoinInnerIcon/> </Button>
               </Tooltip>
               <Paper sx={{
                 display: 'flex',
                 flexDirection: 'column',
                 borderRadius: "20px",
-                width: "7vw",
-                height: "100vh",
+                width: "100%",
+                height: "100%",
                 backgroundColor: 'rgba(255, 255, 255, 0.3)',
                 backdropFilter: 'blur(5px)',
                 outline: " 1px solid indigo"

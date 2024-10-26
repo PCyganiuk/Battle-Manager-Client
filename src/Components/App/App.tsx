@@ -45,7 +45,7 @@ const Home = () => {
 
 
   return <Box sx={{
-    backgroundImage: `url(/assets/blob-scene-haikei.svg), url(/assets/bg-home.png)`, // Remove extra quotes
+    backgroundImage: `url(/assets/blob-scene-haikei.svg), url(/assets/bg-home.png)`,
     backgroundPosition: "center, center",
     backgroundSize: "cover, cover",
     height: '100vh',
