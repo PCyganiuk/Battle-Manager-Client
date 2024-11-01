@@ -1,30 +1,123 @@
 import { Graphics as PixiGraphics, Rectangle } from 'pixi.js';
 import { Stage, Container, Sprite, Graphics } from '@pixi/react';
-import { useRef, useState } from 'react';
-import { Box, Button, Paper } from '@mui/material';
+import { useRef, useState, useEffect } from 'react';
+import useWebSocket from 'react-use-websocket'
+import { Box, Typography, Button, Paper, Dialog, DialogContent, DialogActions, DialogTitle, TextField } from '@mui/material';
 
 interface Pawn {
-    x: number;
-    y: number;
-    image: string;
+    id: string;
+    pawn_name: string;
+    pos_x: number;
+    pos_y: number;
+    dimension_x: number;
+    dimension_y: number;
+    hit_points: number;
+    initiative: number;
+    attack_bonus: number;
+    damage_bonus: number;
+    armor_class: number;
+    strength: number;
+    dexterity: number;
+    constitution: number;
+    intelligence: number;
+    wisdom: number;
+    charisma: number;
+    speed: number;
+    game_id: string | null;
+    ai_enabled: boolean;
+    player_character: string;
+    picture: string;
     isDragging: boolean;
     startDrag: { x: number; y: number };
-    
 }
 
 const GameMap = () => {
-    const bunnyUrl = 'https://pixijs.io/pixi-react/img/bunny.png';
+    const thisGameId = localStorage.getItem('gameId')
     const [isDragging, setIsDragging] = useState(false);
     const [startDrag, setStartDrag] = useState({ x: 0, y: 0 });
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [pawns, setPawns] = useState<Pawn[]>([]);
     const [zoom, setZoom] = useState(1);
+    const [hoveredPawnIndex, setHoveredPawnIndex] = useState<number | null>(null);
+    const [dialogOpen, setDialogOpen] = useState(false);
     const [isOverPawn, setIsOverPawn] = useState(false);
     const [pivot, setPivot] = useState({ x: 0, y: 0 });
     const stageRef = useRef<any>(null);
+    const [newPawn, setNewPawn] = useState<Omit<Pawn, 'isDragging' | 'startDrag' | 'pos_x' | 'pos_y'>>({
+      id: '',
+      pawn_name: '',
+      dimension_x: 50,
+      dimension_y: 50,
+      hit_points: 10,
+      initiative: 1,
+      attack_bonus: 0,
+      damage_bonus: 0,
+      armor_class: 10,
+      strength: 10,
+      dexterity: 10,
+      constitution: 10,
+      intelligence: 10,
+      wisdom: 10,
+      charisma: 10,
+      speed: 30,
+      game_id: thisGameId,
+      ai_enabled: false,
+      player_character: '',
+      picture: 'https://pixijs.io/pixi-react/img/bunny.png',
+    });
     const gridRows = 30;
     const gridCols = 30;
     const squareSize = 50;
+    const socketUrl = `ws://127.0.0.1:8000/ws/pawns/${thisGameId}`
+
+    const openDialog = () => setDialogOpen(true);
+    const closeDialog = () => setDialogOpen(false);
+
+    const { sendMessage, lastMessage, readyState } = useWebSocket(socketUrl, {
+      onOpen: () => console.log('Websocket connection opened'),
+      onClose: () => console.log('WebSocket connection closed'),
+      onError: (error) => console.error('WebSocket error:', error),
+      shouldReconnect: () => true,
+    });
+
+    const fetchPawns = async () => {
+      try {
+          const response = await fetch(`http://127.0.0.1:8000/pawns/${thisGameId}`);
+          if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const pawnsData = await response.json();
+          
+          console.log(pawnsData);
+          if (pawnsData){
+            setPawns(pawnsData);
+          }
+      } catch (error) {
+          console.error('Error fetching pawns:', error);
+      }
+  };
+
+    useEffect(() => {
+      if (lastMessage !== null){
+        try {
+          const data = JSON.parse(lastMessage.data);
+          console.log(data);
+          if(data.event == 'pawn_added' && data.data) {
+            setPawns((prevPawns) => [...prevPawns, data.data]);
+          }
+        } catch (error) {
+          console.error('Error parsing message:', error);
+        }
+      }
+    }, [lastMessage]);
+
+    useEffect(() => {
+      fetchPawns();
+    }, [thisGameId]);
+
+    const handleInputChange = (field: keyof Pawn, value: any) => {
+      setNewPawn({ ...newPawn, [field]: value });
+    };
 
     const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
         event.preventDefault();
@@ -37,17 +130,63 @@ const GameMap = () => {
         setZoom(newScale);
     };
 
-    const addPawn = () => {
-        const newPawn = {
-            id: pawns.length + 1,
-            x: Math.random() * 1000,
-            y: Math.random() * 500,
-            image: bunnyUrl,
-            isDragging: false,
-            startDrag: {x: 0, y: 0},
-        };
-        setPawns([...pawns, newPawn]);
+    const addPawn = async () => {
+      const pawn = {
+          ...newPawn,
+          pos_x: 1000,
+          pos_y: 500,
+          isDragging: false,
+          startDrag: { x: 0, y: 0 },
+      };
+
+      const dbPawn = {
+        pawn_name: pawn.pawn_name,
+        pos_x: 500,
+        pos_y: 500,
+        dimension_x: pawn.dimension_x,
+        dimension_y: pawn.dimension_y,
+        hit_points: pawn.hit_points,
+        initiative: pawn.initiative,
+        attack_bonus: pawn.attack_bonus,
+        damage_bonus: pawn.damage_bonus,
+        armor_class: pawn.armor_class,
+        strength: pawn.strength,
+        dexterity: pawn.dexterity,
+        constitution: pawn.constitution,
+        intelligence: pawn.intelligence,
+        wisdom: pawn.wisdom,
+        charisma: pawn.charisma,
+        speed: pawn.speed,
+        game_id: thisGameId,
+        ai_enabled: false,
+        player_character: pawn.player_character,
+        picture: 'https://pixijs.io/pixi-react/img/bunny.png',
+
+      }
+      setPawns([...pawns, pawn]);
+      console.log(JSON.stringify(dbPawn));
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/pawns/add/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dbPawn),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const savedPawn = await response.json();
+        const updatedPawn = { ...pawn, id: savedPawn.id };
+
+        setPawns((prevPawns) => [...prevPawns, updatedPawn]);
+    } catch (error) {
+        console.error('Error adding pawn:', error);
     }
+      closeDialog();
+    };
 
     const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
         if (event.button === 1) {
@@ -72,8 +211,7 @@ const GameMap = () => {
       const drawGrid = (g: PixiGraphics) => {
         g.clear();
 
-        const lineThickness = 1 / zoom; 
-        console.log(zoom);
+        const lineThickness = 1 / zoom;
 
         g.lineStyle(lineThickness, 0xCCCCCC, 1);
 
@@ -98,7 +236,7 @@ const GameMap = () => {
 
       const startDraggingPawn = (event: any, index: number) => {
         if (event.data.button === 0) {
-          const { x, y } = pawns[index];
+          const { pos_x: x, pos_y: y } = pawns[index];
 
           const offsetX = event.data.global.x / zoom - x;
           const offsetY = event.data.global.y / zoom - y;
@@ -123,7 +261,7 @@ const GameMap = () => {
                 newX = Math.max(0, Math.min(newX, gridCols * squareSize - squareSize));
                 newY = Math.max(0, Math.min(newY, gridRows * squareSize - squareSize));
 
-                return { ...pawn, x: newX, y: newY };
+                return { ...pawn, pos_x: newX, pos_y: newY };
             }
             return pawn;
         })
@@ -135,8 +273,8 @@ const GameMap = () => {
       setPawns((prevPawns) =>
         prevPawns.map((pawn, i) => {
             if (i === index) {
-                const { x, y } = snapToGrid(pawn.x, pawn.y);
-                return { ...pawn, isDragging: false, x, y };
+                const { x, y } = snapToGrid(pawn.pos_x, pawn.pos_y);
+                return { ...pawn, isDragging: false, pos_x: x, pos_y: y };
             }
             return pawn;
         })
@@ -164,45 +302,88 @@ const GameMap = () => {
         sx={{
             display: 'flex',
             height: '100vh',
-            width: '10vw'
+            width: '4vw',
+            zIndex: 10,
         }}
         >
-            <Button onClick={addPawn}>sefsf</Button>
+            <Button onClick={openDialog} sx={{
+              height: "10vh",
+            }}> Add Pawn</Button>
+
+          
         </Paper>
 
-        <Stage 
-        width={1920} 
-        height={1080} 
-        ref={stageRef} 
-        options={{ background: 0xffffff }}>
-            <Container
-            scale={zoom} 
-            pivot={pivot}
-            position={position}
-            >
+        <Dialog open={dialogOpen} onClose={closeDialog}>
+                <DialogTitle>Add New Pawn</DialogTitle>
+                <DialogContent>
+                    <TextField label="Pawn Name" fullWidth onChange={(e) => handleInputChange('pawn_name', e.target.value)} />
+                    <TextField label="HP" type="number" fullWidth onChange={(e) => handleInputChange('hit_points', +e.target.value)} />
+                    <TextField label="Initiative" type="number" fullWidth onChange={(e) => handleInputChange('initiative', +e.target.value)} />
+                    {/* Add additional fields as needed */}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeDialog}>Cancel</Button>
+                    <Button onClick={addPawn} color="primary">Add Pawn</Button>
+                </DialogActions>
+            </Dialog>
+        <Box
+        sx={{
+          flex: 1,
+          overflow: 'hidden',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          position: 'relative',
+          zIndex: 1,
+        }}>
+          <Stage 
+          width={1920} 
+          height={1080} 
+          ref={stageRef} 
+          
+          options={{ background: 0xffffff }}>
+              <Container
+              scale={zoom} 
+              pivot={pivot}
+              position={position}
+              >
 
-            < Graphics draw={drawGrid} />
+              < Graphics draw={drawGrid} />
 
-            {pawns.map((pawn, index) => (
-                        <Sprite 
-                        hitArea={pawn.isDragging 
-                          ? new Rectangle(-250, -250, squareSize + 500, squareSize + 500)
-                          : new Rectangle(0, 0, squareSize, squareSize)
-                        }
-                        key={index} 
-                        image={pawn.image} 
-                        x={pawn.x} 
-                        y={pawn.y}
-                        interactive
-                        pointerdown={(event) => startDraggingPawn(event, index)}
-                        pointermove={(event) => dragPawn(event, index)}
-                        pointerup={() => stopDraggingPawn(index)}
-                        pointerupoutside={() => stopDraggingPawn(index)}
-                        pointerover={() => {setIsOverPawn(true); console.log("Pointer is over pawn");} }
-                        pointerout={() => {setIsOverPawn(false); console.log("Pointer left pawn");}} />
-                    ))}
-            </Container>
-        </Stage>
+              {pawns.map((pawn, index) => (
+                          <Sprite 
+                          hitArea={pawn.isDragging 
+                            ? new Rectangle(-250, -250, squareSize + 500, squareSize + 500)
+                            : new Rectangle(0, 0, squareSize, squareSize)
+                          }
+                          key={index} 
+                          image={'https://pixijs.io/pixi-react/img/bunny.png'} 
+                          x={pawn.pos_x} 
+                          y={pawn.pos_y}
+                          interactive
+                          pointerdown={(event) => startDraggingPawn(event, index)}
+                          pointermove={(event) => dragPawn(event, index)}
+                          pointerup={() => stopDraggingPawn(index)}
+                          pointerupoutside={() => stopDraggingPawn(index)}
+                          pointerover={() => {setIsOverPawn(true); setHoveredPawnIndex(index);} }
+                          pointerout={() => {setIsOverPawn(false); setHoveredPawnIndex(null)}} />
+                      ))}
+              </Container>
+          </Stage>
+        </Box>
+        <Paper sx={{ width: '15vw', height: '100vh', overflow: 'hidden', zIndex: 10, }}>
+          {hoveredPawnIndex !== null && (
+                  <Paper sx={{ width: '100vw', height: '20vh', padding: 2, overflowY: 'auto', zIndex: 10, }}>
+                      <Typography variant="h6">{pawns[hoveredPawnIndex].pawn_name} Statistics</Typography>
+                      <Typography variant="body1">HP: {pawns[hoveredPawnIndex].hit_points}</Typography>
+                      <Typography variant="body1">Initiative: {pawns[hoveredPawnIndex].initiative}</Typography>
+                      <Typography variant="body1">AC: {pawns[hoveredPawnIndex].armor_class}</Typography>
+                      <Typography variant="body1">Attack Bonus: {pawns[hoveredPawnIndex].attack_bonus}</Typography>
+                      <Typography variant="body1">Damage Bonus: {pawns[hoveredPawnIndex].damage_bonus}</Typography>
+                  </Paper>
+          )}
+        </Paper>
+
       </Box>
     );
 };

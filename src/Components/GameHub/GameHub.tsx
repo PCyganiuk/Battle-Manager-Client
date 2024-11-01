@@ -20,7 +20,9 @@ const GameHub = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-    const runGame = async () => {
+    const runGame = async (gameId: string) => {
+      localStorage.setItem('gameId', gameId)
+      console.log(gameId);
         navigate('/game-map');
     }
 
@@ -54,7 +56,7 @@ const GameHub = () => {
 
         const fetchedGames = data.map((game: any, index: number) => ({
           id: index + 1,
-          gameId: game._id,
+          gameId: game.id,
           gameName: game.game_name,
         }));
 
@@ -147,7 +149,7 @@ const GameHub = () => {
                               overflow: 'hidden',
                               outline: '1px solid indigo',     
                               }}>
-                                <Typography sx={{color: 'indigo'}}>{game.gameName}</Typography>
+                                <Typography sx={{color: 'indigo'}}>{game.gameId}</Typography>
                                 {game.picture ? (
                                 <img
                                   src={`data:image/png;base64,${game.picture}`}
@@ -169,7 +171,7 @@ const GameHub = () => {
                                 )}
 
                                 <ButtonGroup aria-label="Basic button group">
-                                  <Button color="success" onClick={runGame}><RocketLaunchIcon/></Button>
+                                  <Button color="success" onClick={() => runGame(game.gameId)}><RocketLaunchIcon/></Button>
                                   <Button><TuneIcon/></Button>
                                   <Button color="error"><DeleteIcon /></Button>
                                 </ButtonGroup>
