@@ -32,6 +32,8 @@ interface Pawn {
 }
 
 const GameMap = () => {
+    const API_URL = '127.0.0.1:8000'
+
     const thisGameId = localStorage.getItem('gameId')
     const [isDragging, setIsDragging] = useState(false);
     const [startDrag, setStartDrag] = useState({ x: 0, y: 0 });
@@ -68,7 +70,7 @@ const GameMap = () => {
     const gridRows = 30;
     const gridCols = 30;
     const squareSize = 50;
-    const socketUrl = `ws://127.0.0.1:8000/ws/pawns/${thisGameId}`
+    const socketUrl = `ws://${API_URL}/ws/pawns/${thisGameId}`
 
     const openDialog = () => setDialogOpen(true);
     const closeDialog = () => setDialogOpen(false);
@@ -82,7 +84,7 @@ const GameMap = () => {
 
     const fetchPawns = async () => {
       try {
-          const response = await fetch(`http://127.0.0.1:8000/pawns/${thisGameId}`);
+          const response = await fetch(`http://${API_URL}/pawns/${thisGameId}`);
           if (!response.ok) {
               throw new Error(`HTTP error! status: ${response.status}`);
           }
@@ -104,6 +106,24 @@ const GameMap = () => {
           console.log(data);
           if(data.event == 'pawn_added' && data.data) {
             setPawns((prevPawns) => [...prevPawns, data.data]);
+          }
+          else if ( data.event == 'pawn_position_updated' && data.data) {
+            const { pawn_id, data: { pos_x, pos_y } } = data;
+            console.log(`Updating position for pawn with id ${pawn_id}:`, { pos_x, pos_y });
+            
+            setPawns((prevPawns) =>
+              prevPawns.map((pawn) => {
+                  if (pawn.id === pawn_id) {
+                      // Update pos_x and pos_y for the pawn with matching id
+                      return {
+                          ...pawn, // Keep the existing properties
+                          pos_x: pos_x !== undefined ? pos_x : pawn.pos_x, // Update pos_x only if new value is provided
+                          pos_y: pos_y !== undefined ? pos_y : pawn.pos_y, // Update pos_y only if new value is provided
+                      };
+                  }
+                  return pawn; // Return unchanged pawn
+              })
+          );
           }
         } catch (error) {
           console.error('Error parsing message:', error);
@@ -166,7 +186,7 @@ const GameMap = () => {
       setPawns([...pawns, pawn]);
       console.log(JSON.stringify(dbPawn));
       try {
-        const response = await fetch(`http://127.0.0.1:8000/pawns/add/`, {
+        const response = await fetch(`http://${API_URL}/pawns/add/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -269,11 +289,31 @@ const GameMap = () => {
       
     };
 
-    const stopDraggingPawn = (index: number) => {
+    const stopDraggingPawn = async (index: number) => {
       setPawns((prevPawns) =>
         prevPawns.map((pawn, i) => {
             if (i === index) {
                 const { x, y } = snapToGrid(pawn.pos_x, pawn.pos_y);
+                
+                const updatePawnPosition = async () => {
+                  try {
+                    const response = await fetch(`http://${API_URL}/pawns/new-pos/${pawn.id}`, {
+                      method: "PATCH",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({ pos_x: x, pos_y: y }),
+                    });
+                    if (!response.ok) {
+                      throw new Error("Failed to update pawn");
+                    }
+                  } catch (error) {
+                    console.error("Error updating pawn:", error);
+                  }
+                };
+        
+                updatePawnPosition();
+
                 return { ...pawn, isDragging: false, pos_x: x, pos_y: y };
             }
             return pawn;
@@ -351,22 +391,36 @@ const GameMap = () => {
               < Graphics draw={drawGrid} />
 
               {pawns.map((pawn, index) => (
-                          <Sprite 
-                          hitArea={pawn.isDragging 
-                            ? new Rectangle(-250, -250, squareSize + 500, squareSize + 500)
-                            : new Rectangle(0, 0, squareSize, squareSize)
-                          }
-                          key={index} 
-                          image={'https://pixijs.io/pixi-react/img/bunny.png'} 
-                          x={pawn.pos_x} 
+                          <Container
+                          key={index}
+                          x={pawn.pos_x}
                           y={pawn.pos_y}
+                          hitArea= {
+                            pawn.isDragging
+                              ? new Rectangle(-250, -250, squareSize + 500, squareSize + 500)
+                              : new Rectangle(0, 0, pawn.dimension_x, pawn.dimension_y) 
+                          }
                           interactive
                           pointerdown={(event) => startDraggingPawn(event, index)}
                           pointermove={(event) => dragPawn(event, index)}
                           pointerup={() => stopDraggingPawn(index)}
                           pointerupoutside={() => stopDraggingPawn(index)}
-                          pointerover={() => {setIsOverPawn(true); setHoveredPawnIndex(index);} }
-                          pointerout={() => {setIsOverPawn(false); setHoveredPawnIndex(null)}} />
+                          pointerover={() => {
+                            setIsOverPawn(true);
+                            setHoveredPawnIndex(index);
+                          }}
+                          pointerout={() => {
+                            setIsOverPawn(false);
+                            setHoveredPawnIndex(null);
+                          }}
+                        >
+                          <Sprite
+                            image={'https://pixijs.io/pixi-react/img/bunny.png'}
+                            width={pawn.dimension_x}
+                            height={pawn.dimension_y}
+                            
+                          />
+                        </Container>
                       ))}
               </Container>
           </Stage>
