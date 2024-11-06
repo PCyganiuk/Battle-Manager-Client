@@ -6,13 +6,7 @@ import AddIcon from '@mui/icons-material/Add';
 import JoinInnerIcon from '@mui/icons-material/JoinInner';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import { useNavigate } from "react-router-dom";
-
-interface GameData {
-  id: number;
-  gameId: string;
-  gameName: string;
-  picture: string;
-}
+import{ GameData } from '../types'
 
 const GameHub = () => {
   const [value, setValue] = useState(0);
@@ -53,13 +47,23 @@ const GameHub = () => {
         }
 
         const data = await response.json();
-
-        const fetchedGames = data.map((game: any, index: number) => ({
-          id: index + 1,
-          gameId: game.id,
-          gameName: game.game_name,
-        }));
-
+    
+        const fetchedGames: GameData[] = data.map((game: any, index: number) => ({
+          grid_id: index + 1,
+          id: game.id,
+          game_name: game.game_name || "Untitled Game",
+          owner_id: game.owner_id || "",
+          dimension_x: game.dimension_x ?? 0,
+          dimension_y: game.dimension_y ?? 0,
+          current_turn: game.current_turn || "",
+          initiative_list: game.initiative_list || [],
+          picture: game.picture_id || "",
+          player_list: game.player_list || [],
+          picture_dimension_x: game.picture_dimension_x ?? null,
+          picture_dimension_y: game.picture_dimension_y ?? null,
+          is_fog: game.is_fog ?? false,
+      }));
+        console.log(fetchedGames);
         setGames(fetchedGames);
       }
       catch (error) {
@@ -134,7 +138,7 @@ const GameHub = () => {
                     ) : (
                       <Grid2 container spacing={2} sx={{ marginTop: 2 }}>
                         {games.map((game) => (
-                          <Grid2 key={game.id} >
+                          <Grid2 key={game.grid_id} >
                             <Paper sx={{ 
                               padding: 2, 
                               textAlign: 'center' ,
@@ -149,7 +153,7 @@ const GameHub = () => {
                               overflow: 'hidden',
                               outline: '1px solid indigo',     
                               }}>
-                                <Typography sx={{color: 'indigo'}}>{game.gameId}</Typography>
+                                <Typography sx={{color: 'indigo'}}>{game.game_name}</Typography>
                                 {game.picture ? (
                                 <img
                                   src={`data:image/png;base64,${game.picture}`}
@@ -171,7 +175,7 @@ const GameHub = () => {
                                 )}
 
                                 <ButtonGroup aria-label="Basic button group">
-                                  <Button color="success" onClick={() => runGame(game.gameId)}><RocketLaunchIcon/></Button>
+                                  <Button color="success" onClick={() => runGame(game.id)}><RocketLaunchIcon/></Button>
                                   <Button><TuneIcon/></Button>
                                   <Button color="error"><DeleteIcon /></Button>
                                 </ButtonGroup>
