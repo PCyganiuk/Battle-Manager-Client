@@ -10,10 +10,12 @@ import useWebSocket from 'react-use-websocket'
 import { Box, Typography, Button, Paper, Dialog, DialogContent, DialogActions, DialogTitle, TextField, ToggleButtonGroup, ToggleButton, ButtonGroup } from '@mui/material';
 import { ObstacleProps, Pawn } from '../types.ts';
 import { MuiColorInput } from 'mui-color-input';
+import { useLocation } from 'react-router-dom';
 
 const GameMap = () => {
   const API_URL = '127.0.0.1:8000'
-  const thisGameId = localStorage.getItem('gameId')
+  const location = useLocation();
+  const { game } = location.state || {};
   const [isDragging, setIsDragging] = useState(false);
   const [startDrag, setStartDrag] = useState({ x: 0, y: 0 });
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -50,16 +52,16 @@ const GameMap = () => {
     wisdom: 10,
     charisma: 10,
     speed: 30,
-    game_id: thisGameId,
+    game_id: game.id,
     ai_enabled: false,
     player_character: '',
     picture: 'https://pixijs.io/pixi-react/img/bunny.png',
     moved: false,
   });
-  const gridRows = 30;
-  const gridCols = 30;
   const squareSize = 50;
-  const socketUrl = `ws://${API_URL}/ws/pawns/${thisGameId}`
+  const gridRows = game.dimension_y;
+  const gridCols = game.dimension_x ;
+  const socketUrl = `ws://${API_URL}/ws/pawns/${game.id}`
   
   const visionRadius = 200;
 
@@ -81,6 +83,7 @@ const GameMap = () => {
         id: '',
         pos_x: 960, // center of the map
         pos_y: 540, // center of the map
+        game_id: game.id,
         width: obstacleConfig.width,
         height: obstacleConfig.height,
         color: obstacleConfig.color,
@@ -102,7 +105,7 @@ const GameMap = () => {
 
   const fetchPawns = async () => {
     try {
-        const response = await fetch(`http://${API_URL}/pawns/${thisGameId}`);
+        const response = await fetch(`http://${API_URL}/pawns/${game.id}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -115,7 +118,24 @@ const GameMap = () => {
     } catch (error) {
         console.error('Error fetching pawns:', error);
     }
-};
+  };
+
+  const fetchObstacles = async () => {
+    try {
+        const response = await fetch(`http://${API_URL}/obstacles/${game.id}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const obstaclesData = await response.json();
+        
+        console.log(obstaclesData);
+        if (obstaclesData){
+          setObstacles(obstaclesData);
+        }
+    } catch (error) {
+        console.error('Error fetching obstacles:', error);
+    }
+  };
 
   useEffect(() => {
     if (lastMessage !== null){
@@ -150,7 +170,8 @@ const GameMap = () => {
 
   useEffect(() => {
     fetchPawns();
-  }, [thisGameId]);
+    fetchObstacles();
+  }, [game.id]);
 
   const handleInputChange = (field: keyof Pawn, value: any) => {
     setNewPawn({ ...newPawn, [field]: value });
@@ -194,7 +215,7 @@ const GameMap = () => {
       wisdom: pawn.wisdom,
       charisma: pawn.charisma,
       speed: pawn.speed,
-      game_id: thisGameId,
+      game_id: game.id,
       ai_enabled: false,
       player_character: pawn.player_character,
       picture: 'https://pixijs.io/pixi-react/img/bunny.png',
@@ -346,6 +367,7 @@ const GameMap = () => {
               const { x, y } = snapToGrid(pawn.pos_x, pawn.pos_y);
               pawn.pos_x = x;
               pawn.pos_y = y;
+              console.log(pawn)
               const updatePawnPosition = async () => {
                 try {
                   const response = await fetch(`http://${API_URL}/pawns/new-pos/${pawn.id}`, {
@@ -353,7 +375,7 @@ const GameMap = () => {
                     headers: {
                       "Content-Type": "application/json",
                     },
-                    //body: JSON.stringify({ pos_x: x, pos_y: y }),
+                    body: JSON.stringify({ pos_x: x, pos_y: y }),
                   });
                   if (!response.ok) {
                     throw new Error("Failed to update pawn");
@@ -377,15 +399,14 @@ const GameMap = () => {
       prevObstacles.map((obstacle, i) => {
           if (i === index) {
               //const { x, y } = snapToGrid(obstacle.pos_x, obstacle.pos_y);
-              
               const updateObstaclePosition = async () => {
                 try {
-                  const response = await fetch(`http://${API_URL}/pawns/new-pos/${obstacle.id}`, {
+                  const response = await fetch(`http://${API_URL}/obstacles/new-pos/${obstacle.id}`, {
                     method: "PATCH",
                     headers: {
                       "Content-Type": "application/json",
                     },
-                    //body: JSON.stringify({ pos_x: x, pos_y: y }),
+                    body: JSON.stringify({ pos_x: obstacle.pos_x, pos_y: obstacle.pos_y }),
                   });
                   if (!response.ok) {
                     throw new Error("Failed to update pawn");

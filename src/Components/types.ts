@@ -31,6 +31,7 @@ export interface ObstacleProps {
     pos_x: number;
     pos_y: number;
     width: number;
+    game_id: string;
     height: number;
     color?: number;
     isDragging: boolean;

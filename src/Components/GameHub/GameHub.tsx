@@ -14,10 +14,10 @@ const GameHub = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-    const runGame = async (gameId: string) => {
-      localStorage.setItem('gameId', gameId)
-      console.log(gameId);
-        navigate('/game-map');
+    const runGame = async (game: GameData) => {
+      localStorage.setItem('gameId', game.id)
+      console.log(game.id);
+        navigate('/game-map', { state: { game } });
     }
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -175,7 +175,7 @@ const GameHub = () => {
                                 )}
 
                                 <ButtonGroup aria-label="Basic button group">
-                                  <Button color="success" onClick={() => runGame(game.id)}><RocketLaunchIcon/></Button>
+                                  <Button color="success" onClick={() => runGame(game)}><RocketLaunchIcon/></Button>
                                   <Button><TuneIcon/></Button>
                                   <Button color="error"><DeleteIcon /></Button>
                                 </ButtonGroup>
