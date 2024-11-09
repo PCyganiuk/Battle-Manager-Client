@@ -1,21 +1,25 @@
-import { Graphics as PixiGraphics, Rectangle, Polygon } from 'pixi.js';
+import { Graphics as PixiGraphics, Rectangle } from 'pixi.js';
 import { Stage, Container, Sprite, Graphics } from '@pixi/react';
-import { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import MapIcon from '@mui/icons-material/Map';
-import CloudIcon from '@mui/icons-material/Cloud';
 import PersonIcon from '@mui/icons-material/Person';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LandscapeIcon from '@mui/icons-material/Landscape';
 import useWebSocket from 'react-use-websocket'
-import { Box, Typography, Button, Paper, Dialog, DialogContent, DialogActions, DialogTitle, TextField, ToggleButtonGroup, ToggleButton, ButtonGroup } from '@mui/material';
+import Grid from '@mui/material/Grid2';
+import { Box, Typography, Button, Paper, Dialog, DialogContent, DialogActions, DialogTitle, TextField, ToggleButtonGroup, ToggleButton, ButtonGroup, Switch, InputAdornment } from '@mui/material';
 import { ObstacleProps, Pawn } from '../types.ts';
 import { MuiColorInput } from 'mui-color-input';
 import { useLocation } from 'react-router-dom';
+import { drawFog } from './Fog.ts';
+import { ShapeLine } from '@mui/icons-material';
+//import CloudIcon from '@mui/icons-material/Cloud';
 
 const GameMap = () => {
   const API_URL = '127.0.0.1:8000'
   const location = useLocation();
   const { game } = location.state || {};
+  const [isFog, setIsFog] = useState(game.is_fog);
   const [isDragging, setIsDragging] = useState(false);
   const [startDrag, setStartDrag] = useState({ x: 0, y: 0 });
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -30,6 +34,8 @@ const GameMap = () => {
   const stageRef = useRef<any>(null);
   const [obstacles, setObstacles] = useState<ObstacleProps[]>([]);
   const [obstacleDialogOpen, setObstacleDialogOpen] = useState(false);
+  const [selectedPawnIndex, setSelectedPawn] = useState<number | null>(null);
+  const squareSize = 50;
   const [obstacleConfig, setObstacleConfig] = useState({
       width: 100,
       height: 100,
@@ -38,8 +44,8 @@ const GameMap = () => {
   const [newPawn, setNewPawn] = useState<Omit<Pawn, 'isDragging' | 'startDrag' | 'pos_x' | 'pos_y'>>({
     id: '',
     pawn_name: '',
-    dimension_x: 50,
-    dimension_y: 50,
+    dimension_x: squareSize,
+    dimension_y: squareSize,
     hit_points: 10,
     initiative: 1,
     attack_bonus: 0,
@@ -58,7 +64,6 @@ const GameMap = () => {
     picture: 'https://pixijs.io/pixi-react/img/bunny.png',
     moved: false,
   });
-  const squareSize = 50;
   const gridRows = game.dimension_y;
   const gridCols = game.dimension_x ;
   const socketUrl = `ws://${API_URL}/ws/pawns/${game.id}`
@@ -78,28 +83,13 @@ const GameMap = () => {
     shouldReconnect: () => true,
   });
 
-  const addObstacle = () => {
-    const newObstacle: ObstacleProps = {
-        id: '',
-        pos_x: 960, // center of the map
-        pos_y: 540, // center of the map
-        game_id: game.id,
-        width: obstacleConfig.width,
-        height: obstacleConfig.height,
-        color: obstacleConfig.color,
-        isDragging: false,
-        startDrag: {x: 0, y: 0},
-    };
-    setObstacles((prev) => [...prev, newObstacle]);
-    closeObstacleDialog();
-  };
-
-  const hexToNumber = (hex: string): number => {
-    return parseInt(hex.replace(/^#/, ''), 16);
-  };
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => e.preventDefault()
+    document.addEventListener("contextmenu", handleContextMenu)
+    return () => document.removeEventListener("contextmenu", handleContextMenu)  
+  }, [])
 
   const handleObstacleConfigChange = (field: keyof typeof obstacleConfig, value: string | number) => {
-    const newValue = field === 'color' && typeof value === 'string' ? hexToNumber(value) : value;
     setObstacleConfig({ ...obstacleConfig, [field]: value });
   };
 
@@ -188,6 +178,61 @@ const GameMap = () => {
       setZoom(newScale);
   };
 
+  const handleStatChange = (stat: keyof Pawn, value: number, index: number) => {
+    setPawns((prevPawns) => {
+      const updatedPawns = [...prevPawns];
+      updatedPawns[index] = {
+        ...updatedPawns[index],
+        [stat]: value,
+      };
+      return updatedPawns;
+    });
+  };
+
+  const addObstacle = async () => {
+    const newObstacle: ObstacleProps = {
+        id: '',
+        pos_x: gridCols * squareSize / 2, // center of the map
+        pos_y: gridRows * squareSize / 2, // center of the map
+        game_id: game.id,
+        width: obstacleConfig.width,
+        height: obstacleConfig.height,
+        color: obstacleConfig.color,
+        isDragging: false,
+        startDrag: {x: 0, y: 0},
+    };
+
+    const dbObstacle = {
+      pos_x: newObstacle.pos_x,
+      pos_y: newObstacle.pos_y,
+      game_id: game.id,
+      width: obstacleConfig.width,
+      height: obstacleConfig.height,
+      color: obstacleConfig.color
+    }
+    try {
+      const response = await fetch(`http://${API_URL}/obstacles/add/`, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(dbObstacle),
+      });
+
+      if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const savedObstacle = await response.json();
+      const updatedObstacle = { ...newObstacle, id: savedObstacle.id };
+
+      setObstacles((prevObstacles) => [...prevObstacles, updatedObstacle]);
+    } catch (error) {
+        console.error('Error adding obstacle:', error);
+    }
+    closeObstacleDialog();
+  };
+
   const addPawn = async () => {
     const pawn = {
         ...newPawn,
@@ -220,7 +265,7 @@ const GameMap = () => {
       player_character: pawn.player_character,
       picture: 'https://pixijs.io/pixi-react/img/bunny.png',
     }
-    setPawns([...pawns, pawn]);
+    //setPawns([...pawns, pawn]);
     console.log(JSON.stringify(dbPawn));
     try {
       const response = await fetch(`http://${API_URL}/pawns/add/`, {
@@ -239,9 +284,9 @@ const GameMap = () => {
       const updatedPawn = { ...pawn, id: savedPawn.id };
 
       setPawns((prevPawns) => [...prevPawns, updatedPawn]);
-  } catch (error) {
-      console.error('Error adding pawn:', error);
-  }
+    } catch (error) {
+        console.error('Error adding pawn:', error);
+    }
     closeAddPawnDialog();
   };
 
@@ -261,10 +306,25 @@ const GameMap = () => {
     }
   };
 
-  const handleLayer = (event: React.MouseEvent<HTMLElement>, nextLayer: string) => {
+  const handleLayer = (_event: React.MouseEvent<HTMLElement>, nextLayer: string) => {
     if (nextLayer != null)
       setLayer(nextLayer);
   };
+
+  const handleFog = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setIsFog(event.target.checked);
+  };
+
+  const handlePawnDimensions = (_event: React.MouseEvent<HTMLElement>, newDim: number, index: number) => {
+    setPawns((prevPawns) => {
+      const updatedPawns = [...prevPawns];
+      updatedPawns[index] = {
+        ...updatedPawns[index],
+        ['dimension_x']: newDim,
+      };
+      return updatedPawns;
+    });
+  }
 
   const handleMouseUp = () => {
     setIsDragging(false);
@@ -296,7 +356,7 @@ const GameMap = () => {
     return { x: snappedX, y: snappedY };
   };
 
-  const startDraggingPawn = (event: any, index: number) => {
+  const startPawnAction = (event: any, index: number) => {
     if (event.data.button === 0) {
       const { pos_x: x, pos_y: y } = pawns[index];
 
@@ -311,6 +371,8 @@ const GameMap = () => {
           )
       );
     }
+    else if (event.data.button === 2)
+      setSelectedPawn(index);
   };
 
   const startDraggingObstacle = (event: any, index: number) => {
@@ -386,7 +448,7 @@ const GameMap = () => {
               };
 
               updatePawnPosition();
-              drawFog();
+              renderFog();
               return { ...pawn, isDragging: false };
           }
           return pawn;
@@ -417,68 +479,23 @@ const GameMap = () => {
               };
               
               updateObstaclePosition();
-              drawFog();
+              renderFog();
               return { ...obstacle, isDragging: false };
           }
           return obstacle;
       })
     );
   };
-
-  // Helper function to check if a line segment intersects any obstacles
-const isTileBlockedByObstacle = (startX: number, startY: number, endX: number, endY: number) => {
-  return obstacles.some(obstacle => {
-    // Define the obstacle rectangle as four line segments
-    const obstacleLines = [
-      { x1: obstacle.pos_x, y1: obstacle.pos_y, x2: obstacle.pos_x + obstacle.width, y2: obstacle.pos_y },
-      { x1: obstacle.pos_x + obstacle.width, y1: obstacle.pos_y, x2: obstacle.pos_x + obstacle.width, y2: obstacle.pos_y + obstacle.height },
-      { x1: obstacle.pos_x + obstacle.width, y1: obstacle.pos_y + obstacle.height, x2: obstacle.pos_x, y2: obstacle.pos_y + obstacle.height },
-      { x1: obstacle.pos_x, y1: obstacle.pos_y + obstacle.height, x2: obstacle.pos_x, y2: obstacle.pos_y },
-    ];
-
-    // Check if any of these lines intersect the line between the pawn and the tile
-    return obstacleLines.some(line => doLinesIntersect(startX, startY, endX, endY, line.x1, line.y1, line.x2, line.y2));
-  });
-};
-
-// Function to check if two line segments intersect
-const doLinesIntersect = (x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, x4: number, y4: number) => {
-  const det = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
-  if (det === 0) return false; // Lines are parallel
-
-  const lambda = ((y4 - y3) * (x4 - x1) + (x3 - x4) * (y4 - y1)) / det;
-  const gamma = ((y1 - y2) * (x4 - x1) + (x2 - x1) * (y4 - y1)) / det;
-
-  return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
-};
-
-const drawFog = () => {
-  if (!fogGraphicsRef.current) return;
-
-  fogGraphicsRef.current.clear();
-
-  for (let x = 0; x < gridCols; x++) {
-    for (let y = 0; y < gridRows; y++) {
-      const tileCenterX = x * squareSize + squareSize / 2;
-      const tileCenterY = y * squareSize + squareSize / 2;
-
-      const isTileVisible = pawns.some(pawn => {
-        const distance = Math.sqrt(
-          Math.pow(tileCenterX - pawn.pos_x, 2) + Math.pow(tileCenterY - pawn.pos_y, 2)
-        );
-
-        // Check if the tile is within the vision radius and unobstructed by obstacles
-        return distance <= visionRadius && !isTileBlockedByObstacle(pawn.pos_x, pawn.pos_y, tileCenterX, tileCenterY);
-      });
-
-      if (!isTileVisible) {
-        fogGraphicsRef.current.beginFill(0x000000, 0.9);
-        fogGraphicsRef.current.drawRect(x * squareSize, y * squareSize, squareSize, squareSize);
-        fogGraphicsRef.current.endFill();
-      }
-    }
-  }
-};
+  const renderFog = () => drawFog(
+    fogGraphicsRef.current,
+    gridCols,
+    gridRows,
+    squareSize,
+    pawns,
+    obstacles,
+    visionRadius,
+    isFog
+  )
 
   
 
@@ -528,7 +545,7 @@ const drawFog = () => {
         {layer === 'obstacle' && (
           <ButtonGroup>
             <Button onClick={openObstacleDialog} variant='outlined'>
-              
+              <ShapeLine/>
             </Button>
           </ButtonGroup>
         )}
@@ -546,7 +563,13 @@ const drawFog = () => {
         flexDirection: 'column',
         gap: 1
       }}>
-        
+
+        <Switch
+          checked={isFog}
+          onChange={handleFog}
+          inputProps={{'aria-label': 'controlled'}}
+        />
+
         <ToggleButtonGroup
           orientation='vertical'
           color='primary'
@@ -625,11 +648,11 @@ const drawFog = () => {
         ref={stageRef} 
         
         options={{ background: 0xffffff }}>
-            <Container
+          <Container
             scale={zoom} 
             pivot={pivot}
             position={position}
-            >
+          >
 
             < Graphics draw={drawGrid} />
             
@@ -652,54 +675,182 @@ const drawFog = () => {
             ))}
             
             {pawns.map((pawn, index) => (
-                        <Container
-                        key={index}
-                        x={pawn.pos_x}
-                        y={pawn.pos_y}
-                        hitArea= {
-                          pawn.isDragging
-                            ? new Rectangle(-250, -250, squareSize + 500, squareSize + 500)
-                            : new Rectangle(0, 0, pawn.dimension_x, pawn.dimension_y) 
-                        }
-                        interactive
-                        pointerdown={(event) => startDraggingPawn(event, index)}
-                        pointermove={(event) => dragPawn(event, index)}
-                        pointerup={() => stopDraggingPawn(index)}
-                        pointerupoutside={() => stopDraggingPawn(index)}
-                        pointerover={() => {
-                          setIsOverPawn(true);
-                          setHoveredPawnIndex(index);
-                        }}
-                        pointerout={() => {
-                          setIsOverPawn(false);
-                          setHoveredPawnIndex(null);
-                        }}
-                      >
-                        <Sprite
-                          image={'https://pixijs.io/pixi-react/img/bunny.png'}
-                          width={pawn.dimension_x}
-                          height={pawn.dimension_y}
-                          
-                        />
-                      </Container>
-                    ))}
-                    <Graphics ref={fogGraphicsRef} />
-            </Container>
+              <Container
+              key={index}
+              x={pawn.pos_x}
+              y={pawn.pos_y}
+              hitArea= {
+                pawn.isDragging
+                  ? new Rectangle(-250, -250, squareSize + 500, squareSize + 500)
+                  : new Rectangle(0, 0, pawn.dimension_x, pawn.dimension_x) 
+              }
+              interactive
+              pointerdown={(event) => startPawnAction(event, index)}
+              pointermove={(event) => dragPawn(event, index)}
+              pointerup={() => stopDraggingPawn(index)}
+              pointerupoutside={() => stopDraggingPawn(index)}
+              pointerover={() => {
+                setIsOverPawn(true);
+                setHoveredPawnIndex(index);
+              }}
+              pointerout={() => {
+                setIsOverPawn(false);
+                setHoveredPawnIndex(null);
+              }}
+              >
+              <Sprite
+                image={'/assets/smolbartek.png'}
+                width={pawn.dimension_x}
+                height={pawn.dimension_x}
+                
+              />
+              </Container>
+            ))}
+            <Graphics ref={fogGraphicsRef} />
+          </Container>
         </Stage>
       </Box>
-      <Paper sx={{ width: '15vw', height: '100vh', overflow: 'hidden', zIndex: 10, }}>
+      <Paper sx={{  
+        height: '95vh', 
+        overflow: 'hidden', 
+        zIndex: 10,
+        display: 'flex',
+        flexDirection: 'column',        
+        width: 300,
+        borderRadius: "20px",
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        backdropFilter: 'blur(5px)',
+        position: 'absolute',
+        right: 0,
+        outline: " 2px solid indigo" 
+        }}>
         {hoveredPawnIndex !== null && (
-                <Paper sx={{ width: '100vw', height: '20vh', padding: 2, overflowY: 'auto', zIndex: 10, }}>
-                    <Typography variant="h6">{pawns[hoveredPawnIndex].pawn_name} Statistics</Typography>
-                    <Typography variant="body1">HP: {pawns[hoveredPawnIndex].hit_points}</Typography>
-                    <Typography variant="body1">Initiative: {pawns[hoveredPawnIndex].initiative}</Typography>
-                    <Typography variant="body1">AC: {pawns[hoveredPawnIndex].armor_class}</Typography>
-                    <Typography variant="body1">Attack Bonus: {pawns[hoveredPawnIndex].attack_bonus}</Typography>
-                    <Typography variant="body1">Damage Bonus: {pawns[hoveredPawnIndex].damage_bonus}</Typography>
-                </Paper>
+          <Paper sx={{ 
+            width: 270, 
+            height: '20vh', 
+            padding: 2, 
+            overflowY: 'auto', 
+            zIndex: 10,
+            borderRadius: "20px",
+            backgroundColor: 'rgba(255, 255, 255, 0.3)',
+            backdropFilter: 'blur(5px)',
+            outline: " 1px solid indigo" }}>
+              <Typography variant="h6">{pawns[hoveredPawnIndex].pawn_name} Statistics</Typography>
+              <Typography variant="body1">HP: {pawns[hoveredPawnIndex].hit_points}</Typography>
+              <Typography variant="body1">Initiative: {pawns[hoveredPawnIndex].initiative}</Typography>
+              <Typography variant="body1">AC: {pawns[hoveredPawnIndex].armor_class}</Typography>
+              <Typography variant="body1">Attack Bonus: {pawns[hoveredPawnIndex].attack_bonus}</Typography>
+              <Typography variant="body1">Damage Bonus: {pawns[hoveredPawnIndex].damage_bonus}</Typography>
+          </Paper>
+        )}
+        {selectedPawnIndex !== null && (
+          <Paper>
+            <Typography> {pawns[selectedPawnIndex].pawn_name}'s character sheet </Typography>
+            <Grid container rowSpacing={1} columns={6} columnSpacing={{ xs: 1, sm: 2, md: 1 }}>
+              <Grid size={2}>
+                <TextField
+                label="STR"
+                type='number'
+                size='small'
+                value={pawns[selectedPawnIndex]?.strength || ''}
+                onChange={(e) => handleStatChange('strength', Math.max(1, +e.target.value), selectedPawnIndex)}
+                />
+              </Grid>
+              <Grid size={2}>
+                <TextField
+                  label="INT"
+                  type='number'
+                  size='small'
+                  value={pawns[selectedPawnIndex]?.intelligence || ''}
+                  onChange={(e) => handleStatChange('intelligence', Math.max(1, +e.target.value), selectedPawnIndex)}
+                  />
+              </Grid>
+              <Grid size={2}>
+                <TextField
+                label="HP"
+                type='number'
+                size='small'
+                value={pawns[selectedPawnIndex]?.hit_points || ''}
+                onChange={(e) => handleStatChange('hit_points', Math.max(0, +e.target.value), selectedPawnIndex)}
+                />
+              </Grid>
+              <Grid size={2}>
+                <TextField
+                  label="DEX"
+                  type='number'
+                  size='small'
+                  value={pawns[selectedPawnIndex]?.dexterity || ''}
+                  onChange={(e) => handleStatChange('dexterity', Math.max(1, +e.target.value), selectedPawnIndex)}
+                  />
+              </Grid>
+              <Grid size={2}>
+                <TextField
+                label="WIS"
+                type='number'
+                size='small'
+                value={pawns[selectedPawnIndex]?.wisdom || ''}
+                onChange={(e) => handleStatChange('wisdom', Math.max(1, +e.target.value), selectedPawnIndex)}
+                />
+              </Grid>
+              <Grid size={2}>
+                <TextField
+                  label="SPD"
+                  type='number'
+                  size='small'
+                  value={pawns[selectedPawnIndex]?.speed || ''}
+                  slotProps={{
+                    input: {
+                      endAdornment: <InputAdornment position="end">ft</InputAdornment>,
+                    },
+                  }}
+                  onChange={(e) => handleStatChange('speed', Math.max(0, +e.target.value), selectedPawnIndex)}
+                  />
+              </Grid>
+              <Grid size={2}>
+                <TextField
+                label="CON"
+                type='number'
+                size='small'
+                value={pawns[selectedPawnIndex]?.constitution || ''}
+                onChange={(e) => handleStatChange('constitution', Math.max(1, +e.target.value), selectedPawnIndex)}
+                />
+              </Grid>
+              <Grid size={2}>
+                <TextField
+                  label="CHA"
+                  type='number'
+                  size='small'
+                  value={pawns[selectedPawnIndex]?.charisma || ''}
+                  onChange={(e) => handleStatChange('charisma', Math.max(1, +e.target.value), selectedPawnIndex)}
+                  />
+              </Grid>
+              <Grid size={2}>
+                <TextField
+                label="INI MOD"
+                type='number'
+                size='small'
+                value={pawns[selectedPawnIndex]?.initiative || ''}
+                onChange={(e) => handleStatChange('initiative', +e.target.value, selectedPawnIndex)}
+                />
+              </Grid>
+            </Grid>
+            <Typography>size</Typography>
+            <ToggleButtonGroup 
+              color='primary' 
+              value={pawns[selectedPawnIndex].dimension_x}
+              exclusive
+              aria-label='Size'
+              onChange={(event, newDim) => handlePawnDimensions(event, newDim, selectedPawnIndex)}
+              >
+              <ToggleButton value={50}>1x1</ToggleButton>
+              <ToggleButton value={100}>2x2</ToggleButton>
+              <ToggleButton value={150}>3x3</ToggleButton>
+              <ToggleButton value={200}>4x4</ToggleButton>
+            </ToggleButtonGroup>
+            <Button> Roll Initiative</Button>
+          </Paper>
         )}
       </Paper>
-
     </Box>
   );
 };
