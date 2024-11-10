@@ -46,10 +46,15 @@ export interface GameData {
     dimension_x: number;
     dimension_y: number;
     current_turn: string;
-    initiative_list: { pawn_id: string; initiative: number }[];
+    initiative_list: { name: string; initiative: number }[];
     picture: string;
     player_list: string[];
     picture_dimension_x: number | null;
     picture_dimension_y: number | null;
     is_fog: boolean;
+}
+
+export interface InitiativeListItem {
+    name: string;
+    initiative: number;
 }

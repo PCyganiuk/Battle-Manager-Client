@@ -7,16 +7,18 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LandscapeIcon from '@mui/icons-material/Landscape';
 import useWebSocket from 'react-use-websocket'
 import Grid from '@mui/material/Grid2';
-import { Box, Typography, Button, Paper, Dialog, DialogContent, DialogActions, DialogTitle, TextField, ToggleButtonGroup, ToggleButton, ButtonGroup, Switch, InputAdornment } from '@mui/material';
-import { ObstacleProps, Pawn } from '../types.ts';
+import { Box, List, IconButton, ListItem, ListItemText, Typography, Button, Paper, Dialog, DialogContent, DialogActions, DialogTitle, TextField, ToggleButtonGroup, ToggleButton, ButtonGroup, Switch, InputAdornment, Divider, ListItemButton } from '@mui/material';
+import { InitiativeListItem, ObstacleProps, Pawn } from '../types.ts';
 import { MuiColorInput } from 'mui-color-input';
 import { useLocation } from 'react-router-dom';
 import { drawFog } from './Fog.ts';
 import { ShapeLine } from '@mui/icons-material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 //import CloudIcon from '@mui/icons-material/Cloud';
 
 const GameMap = () => {
-  const API_URL = '127.0.0.1:8000'
+  const API_URL = '127.0.0.1:8000';
   const location = useLocation();
   const { game } = location.state || {};
   const [isFog, setIsFog] = useState(game.is_fog);
@@ -24,6 +26,8 @@ const GameMap = () => {
   const [startDrag, setStartDrag] = useState({ x: 0, y: 0 });
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [pawns, setPawns] = useState<Pawn[]>([]);
+  const [initiativeList, setInitiativeList] = useState<InitiativeListItem[]>(game.initiative_list);
+  const [currentTurn, setCurrentTurn] = useState(game.current_turn);
   const [layer, setLayer] = useState('token');
   const [zoom, setZoom] = useState(1);
   const fogGraphicsRef = useRef<PixiGraphics | null>(null);
@@ -61,7 +65,7 @@ const GameMap = () => {
     game_id: game.id,
     ai_enabled: false,
     player_character: '',
-    picture: 'https://pixijs.io/pixi-react/img/bunny.png',
+    picture: '/assets/smolbartek.png',
     moved: false,
   });
   const gridRows = game.dimension_y;
@@ -151,6 +155,24 @@ const GameMap = () => {
                 return pawn; // Return unchanged pawn
             })
         );
+        renderFog();
+        }
+        else if(data.event == 'pawn_stat_updated' && data.data) {
+          console.log(data.data);
+          const { pawn_id, data: statValueArray } = data;
+          const stat = statValueArray[0].stat;
+          const value = statValueArray[0].value;
+          console.log(stat);
+          console.log(value);
+          const index = pawns.findIndex(pawn => pawn.id === pawn_id);
+          setPawns((prevPawns) => {
+            const updatedPawns = [...prevPawns];
+            updatedPawns[index] = {
+              ...updatedPawns[index],
+              [stat]: value,
+            };
+            return updatedPawns;
+          });
         }
       } catch (error) {
         console.error('Error parsing message:', error);
@@ -178,7 +200,7 @@ const GameMap = () => {
       setZoom(newScale);
   };
 
-  const handleStatChange = (stat: keyof Pawn, value: number, index: number) => {
+  const handleStatChange = async (stat: keyof Pawn, value: number, index: number) => {
     setPawns((prevPawns) => {
       const updatedPawns = [...prevPawns];
       updatedPawns[index] = {
@@ -187,6 +209,21 @@ const GameMap = () => {
       };
       return updatedPawns;
     });
+    console.log(JSON.stringify({ [stat]: value }));
+    try {
+      const response = await fetch(`http://${API_URL}/${game.id}pawns/modify-pawn/${pawns[index].id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ [stat]: value }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update pawn");
+      }
+    } catch (error) {
+      console.error("Error updating pawn:", error);
+    }
   };
 
   const addObstacle = async () => {
@@ -263,7 +300,7 @@ const GameMap = () => {
       game_id: game.id,
       ai_enabled: false,
       player_character: pawn.player_character,
-      picture: 'https://pixijs.io/pixi-react/img/bunny.png',
+      picture: pawn.picture,
     }
     //setPawns([...pawns, pawn]);
     console.log(JSON.stringify(dbPawn));
@@ -315,7 +352,7 @@ const GameMap = () => {
     setIsFog(event.target.checked);
   };
 
-  const handlePawnDimensions = (_event: React.MouseEvent<HTMLElement>, newDim: number, index: number) => {
+  const handlePawnDimensions = async (_event: React.MouseEvent<HTMLElement>, newDim: number, index: number) => {
     setPawns((prevPawns) => {
       const updatedPawns = [...prevPawns];
       updatedPawns[index] = {
@@ -324,6 +361,20 @@ const GameMap = () => {
       };
       return updatedPawns;
     });
+    try {
+      const response = await fetch(`http://${API_URL}/pawns/modify-pawn/${pawns[index].id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ dimension_x: newDim }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update pawn");
+      }
+    } catch (error) {
+      console.error("Error updating pawn:", error);
+    }
   }
 
   const handleMouseUp = () => {
@@ -497,7 +548,26 @@ const GameMap = () => {
     isFog
   )
 
-  
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Image = reader.result as string; // Get the base64 string of the image
+        setPawns((prevPawns) => {
+          const updatedPawns = [...prevPawns];
+          if (index !== -1) {
+            updatedPawns[index] = {
+              ...updatedPawns[index],
+              picture: base64Image, // Update the picture field with the base64 string
+            };
+          }
+          return updatedPawns;
+        });
+      };
+      reader.readAsDataURL(file); // Convert the file to a base64 string
+    }
+  };
 
   return (
       <Box
@@ -522,7 +592,7 @@ const GameMap = () => {
           display: 'flex',
           flexDirection: 'column',
           position: 'absolute',
-          height: '95vh',
+          height: '98vh',
           width: 70,
           zIndex: 10,
           borderRadius: "20px",
@@ -530,7 +600,7 @@ const GameMap = () => {
           backdropFilter: 'blur(5px)',
           alignItems: 'center',
           justifyContent: 'space-between',
-          paddingY: 2
+          
       }}
       >
         {layer === 'token' && (
@@ -699,7 +769,7 @@ const GameMap = () => {
               }}
               >
               <Sprite
-                image={'/assets/smolbartek.png'}
+                image={pawn.picture}
                 width={pawn.dimension_x}
                 height={pawn.dimension_x}
                 
@@ -711,11 +781,12 @@ const GameMap = () => {
         </Stage>
       </Box>
       <Paper sx={{  
-        height: '95vh', 
+        height: '98vh', 
         overflow: 'hidden', 
         zIndex: 10,
         display: 'flex',
-        flexDirection: 'column',        
+        flexDirection: 'column',
+        justifyContent: "space-between",        
         width: 300,
         borderRadius: "20px",
         backgroundColor: 'rgba(255, 255, 255, 0.3)',
@@ -724,27 +795,20 @@ const GameMap = () => {
         right: 0,
         outline: " 2px solid indigo" 
         }}>
-        {hoveredPawnIndex !== null && (
-          <Paper sx={{ 
-            width: 270, 
-            height: '20vh', 
-            padding: 2, 
-            overflowY: 'auto', 
-            zIndex: 10,
+        {selectedPawnIndex !== null && (
+          <Paper sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignContent: 'center',
+            alignItems: 'center',
+            gap: 0.2,
+            padding: 1,
             borderRadius: "20px",
             backgroundColor: 'rgba(255, 255, 255, 0.3)',
             backdropFilter: 'blur(5px)',
-            outline: " 1px solid indigo" }}>
-              <Typography variant="h6">{pawns[hoveredPawnIndex].pawn_name} Statistics</Typography>
-              <Typography variant="body1">HP: {pawns[hoveredPawnIndex].hit_points}</Typography>
-              <Typography variant="body1">Initiative: {pawns[hoveredPawnIndex].initiative}</Typography>
-              <Typography variant="body1">AC: {pawns[hoveredPawnIndex].armor_class}</Typography>
-              <Typography variant="body1">Attack Bonus: {pawns[hoveredPawnIndex].attack_bonus}</Typography>
-              <Typography variant="body1">Damage Bonus: {pawns[hoveredPawnIndex].damage_bonus}</Typography>
-          </Paper>
-        )}
-        {selectedPawnIndex !== null && (
-          <Paper>
+            outline: " 1px solid indigo"
+          }}>
             <Typography> {pawns[selectedPawnIndex].pawn_name}'s character sheet </Typography>
             <Grid container rowSpacing={1} columns={6} columnSpacing={{ xs: 1, sm: 2, md: 1 }}>
               <Grid size={2}>
@@ -847,9 +911,68 @@ const GameMap = () => {
               <ToggleButton value={150}>3x3</ToggleButton>
               <ToggleButton value={200}>4x4</ToggleButton>
             </ToggleButtonGroup>
-            <Button> Roll Initiative</Button>
+            <Button>Roll Initiative</Button>
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              id="upload-photo"
+              onChange={(e) => handleFileChange(e, selectedPawnIndex)}
+            />
+            <label htmlFor="upload-photo">
+              <Button
+                variant="contained"
+                component="span"
+                startIcon={<CloudUploadIcon />}
+              >
+                Upload Photo
+              </Button>
+            </label>
           </Paper>
         )}
+        {hoveredPawnIndex !== null && (
+          <Paper sx={{ 
+            width: 300, 
+            height: '20vh', 
+            overflowY: 'auto', 
+            zIndex: 10,
+            borderRadius: "20px",
+            backgroundColor: 'rgba(255, 255, 255, 0.3)',
+            backdropFilter: 'blur(5px)',
+            outline: " 1px solid indigo" }}>
+              <Typography variant="h6">{pawns[hoveredPawnIndex].pawn_name} Statistics</Typography>
+              <Typography variant="body1">HP: {pawns[hoveredPawnIndex].hit_points}</Typography>
+              <Typography variant="body1">Initiative: {pawns[hoveredPawnIndex].initiative}</Typography>
+              <Typography variant="body1">AC: {pawns[hoveredPawnIndex].armor_class}</Typography>
+              <Typography variant="body1">Attack Bonus: {pawns[hoveredPawnIndex].attack_bonus}</Typography>
+              <Typography variant="body1">Damage Bonus: {pawns[hoveredPawnIndex].damage_bonus}</Typography>
+          </Paper>
+        )}
+        <Paper sx={{ 
+            width: 300, 
+            height: '20vh',
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            borderRadius: "20px",
+            backgroundColor: 'rgba(255, 255, 255, 0.3)',
+            backdropFilter: 'blur(5px)',
+            outline: " 1px solid indigo" }}>
+            <Box sx={{display: 'flex', justifyContent: 'center'}}>
+              <Button>Prev</Button>
+              <Button>Next</Button>
+            </Box>
+          <List dense={true} component='nav' sx={{overflowY: 'auto', flexGrow: 1}}>
+            {initiativeList.map((pawn, index) => (
+              <ListItemButton key={index} selected={currentTurn === pawn.name}>
+                <ListItemText primary={pawn.name} secondary={pawn.initiative.toString()} />
+                <IconButton edge="end" aria-label="delete">
+                  <DeleteIcon />
+                </IconButton>
+              </ListItemButton>
+            ))}
+          </List>
+        </Paper>
       </Paper>
     </Box>
   );
