@@ -1,3 +1,5 @@
+import { TextStyle } from "pixi.js";
+
 export interface Pawn {
     id: string;
     pawn_name: string;
@@ -57,4 +59,18 @@ export interface GameData {
 export interface InitiativeListItem {
     name: string;
     initiative: number;
+    ai_enabled: boolean;
 }
+
+export type Point = { x: number; y: number };
+
+export interface DistanceLineProps {
+    gridSize: number;
+}
+  
+export const textStyle = new TextStyle({
+    fontSize: 12,
+    fill: '#000000',
+    align: 'left',
+    fontFamily: 'Arial'
+});

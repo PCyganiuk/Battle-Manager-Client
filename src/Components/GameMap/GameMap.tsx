@@ -1,20 +1,25 @@
-import { Graphics as PixiGraphics, Rectangle } from 'pixi.js';
-import { Stage, Container, Sprite, Graphics } from '@pixi/react';
-import React, { useRef, useState, useEffect } from 'react';
+import { Graphics as PixiGraphics, Rectangle, FederatedPointerEvent } from 'pixi.js';
+import { Stage, Container, Sprite, Graphics, Text } from '@pixi/react';
+import React, { useRef, useState, useEffect, MouseEventHandler } from 'react';
 import MapIcon from '@mui/icons-material/Map';
 import PersonIcon from '@mui/icons-material/Person';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LandscapeIcon from '@mui/icons-material/Landscape';
 import useWebSocket from 'react-use-websocket'
 import Grid from '@mui/material/Grid2';
-import { Box, List, IconButton, ListItem, ListItemText, Typography, Button, Paper, Dialog, DialogContent, DialogActions, DialogTitle, TextField, ToggleButtonGroup, ToggleButton, ButtonGroup, Switch, InputAdornment, Divider, ListItemButton } from '@mui/material';
-import { InitiativeListItem, ObstacleProps, Pawn } from '../types.ts';
+import { Box, List, IconButton, ListItemText, Typography, Button, Paper, Dialog, DialogContent, DialogActions, DialogTitle, TextField, ToggleButtonGroup, ToggleButton, ButtonGroup, Switch, InputAdornment, Divider, ListItemButton, Tooltip } from '@mui/material';
+import { InitiativeListItem, ObstacleProps, Pawn, Point, textStyle } from '../types.ts';
 import { MuiColorInput } from 'mui-color-input';
 import { useLocation } from 'react-router-dom';
 import { drawFog } from './Fog.ts';
 import { ShapeLine } from '@mui/icons-material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import AutoModeIcon from '@mui/icons-material/AutoMode';
+import PawnController from './PawnController.ts';
+import GroupIcon from '@mui/icons-material/Group';
+import StraightenIcon from '@mui/icons-material/Straighten';
+import DistanceLine from './DistanceLine.tsx';
 //import CloudIcon from '@mui/icons-material/Cloud';
 
 const GameMap = () => {
@@ -26,7 +31,8 @@ const GameMap = () => {
   const [startDrag, setStartDrag] = useState({ x: 0, y: 0 });
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [pawns, setPawns] = useState<Pawn[]>([]);
-  const [initiativeList, setInitiativeList] = useState<InitiativeListItem[]>(game.initiative_list);
+  const [initiativeList, setInitiativeList] = useState<InitiativeListItem[]>(game.initiative_list); // @TODO issue with initiative after web reload
+  const [isInitiative, setIsInitiative] = useState(false);
   const [currentTurn, setCurrentTurn] = useState(game.current_turn);
   const [layer, setLayer] = useState('token');
   const [zoom, setZoom] = useState(1);
@@ -39,7 +45,13 @@ const GameMap = () => {
   const [obstacles, setObstacles] = useState<ObstacleProps[]>([]);
   const [obstacleDialogOpen, setObstacleDialogOpen] = useState(false);
   const [selectedPawnIndex, setSelectedPawn] = useState<number | null>(null);
+  const [tool, setTool] = useState("measure"); 
   const squareSize = 50;
+  const pawnController = new PawnController(pawns, obstacles, squareSize, setPawns, setObstacles);
+  const [startPoint, setStartPoint] = useState<Point | null>(null);
+  const [endPoint, setEndPoint] = useState<Point | null>(null);
+  const [distance, setDistance] = useState<number | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
   const [obstacleConfig, setObstacleConfig] = useState({
       width: 100,
       height: 100,
@@ -157,7 +169,7 @@ const GameMap = () => {
         );
         renderFog();
         }
-        else if(data.event == 'pawn_stat_updated' && data.data) {
+        else if(data.event == 'pawn_stat_updated' || data.event == 'pawn_size_changed' && data.data) {
           console.log(data.data);
           const { pawn_id, data: statValueArray } = data;
           const stat = statValueArray[0].stat;
@@ -173,6 +185,12 @@ const GameMap = () => {
             };
             return updatedPawns;
           });
+        }
+        else if (data.event == 'pawn_added_to_initiative' && data.data) {
+          console.log(data);
+          const parsedData = JSON.parse(data.data);
+          const pawn: InitiativeListItem = { name: parsedData.name, initiative: parsedData.initiative, ai_enabled: parsedData.ai_enabled};
+          addToInitiative(pawn);
         }
       } catch (error) {
         console.error('Error parsing message:', error);
@@ -211,7 +229,7 @@ const GameMap = () => {
     });
     console.log(JSON.stringify({ [stat]: value }));
     try {
-      const response = await fetch(`http://${API_URL}/${game.id}pawns/modify-pawn/${pawns[index].id}`, {
+      const response = await fetch(`http://${API_URL}/${game.id}/pawns/modify-pawn/${pawns[index].id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -328,9 +346,12 @@ const GameMap = () => {
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-      if (event.button === 1) {
+      if (event.button === 1 && tool === 'token') {
         setIsDragging(true);
         setStartDrag({ x: event.clientX - position.x, y: event.clientY - position.y });
+      }
+      else if (event.button === 1 && tool === 'measure') {
+
       }
     };
   
@@ -348,8 +369,17 @@ const GameMap = () => {
       setLayer(nextLayer);
   };
 
+  const handleTool = (_event: React.MouseEvent<HTMLElement>, nextTool: string) => {
+    if (nextTool != null)
+      setTool(nextTool);
+  };
+
   const handleFog = (event: React.ChangeEvent<HTMLInputElement>) => {
     setIsFog(event.target.checked);
+  };
+
+  const handleInitiative = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setIsInitiative(event.target.checked);
   };
 
   const handlePawnDimensions = async (_event: React.MouseEvent<HTMLElement>, newDim: number, index: number) => {
@@ -548,12 +578,13 @@ const GameMap = () => {
     isFog
   )
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64Image = reader.result as string; // Get the base64 string of the image
+      let base64Image: string;
+      reader.onloadend = async () => {
+        base64Image = reader.result as string; // Get the base64 string of the image
         setPawns((prevPawns) => {
           const updatedPawns = [...prevPawns];
           if (index !== -1) {
@@ -564,8 +595,143 @@ const GameMap = () => {
           }
           return updatedPawns;
         });
+        console.log(JSON.stringify({ "picture": base64Image as string }));
+        try {
+          const response = await fetch(`http://${API_URL}/${game.id}/pawns/modify-pawn/${pawns[index].id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ "picture": base64Image }),
+          });
+          if (!response.ok) {
+            throw new Error("Failed to update pawn picture");
+          }
+        } catch(error){
+          console.error("Error updating pawn:", error);
+        }
       };
-      reader.readAsDataURL(file); // Convert the file to a base64 string
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const addToInitiative = (pawn: InitiativeListItem) => {
+    if (initiativeList.some((item) => item.name === pawn.name)) {
+      console.log("Pawn is already in the initiative list.");
+      return;
+    }
+    setInitiativeList((prevList) => {
+      const updatedList = [...prevList, pawn].sort(
+        (a, b) => b.initiative - a.initiative
+      );
+      return updatedList;
+    });
+  }
+
+  const handleAddToInitiative = async ( _event: React.MouseEvent<HTMLButtonElement, MouseEvent>, pawnName: string, initiativeMod: number, isPawnAi: boolean) => {
+    const pawn:InitiativeListItem = {name: pawnName, initiative: ((Math.floor(Math.random() * 20) + 1) + initiativeMod), ai_enabled: isPawnAi};
+    addToInitiative(pawn);
+    console.log('do bazy');
+    console.log(JSON.stringify({ pawn }));
+    try {
+      const response = await fetch(
+        `http://${API_URL}/games/${game.id}/add-to-initiative`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ "name":pawn.name, "initiative": pawn.initiative  }),
+        }
+      );
+  
+      if (!response.ok) {
+        throw new Error("Failed to add pawn to initiative list on server");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleCurrentInitiative = ( _event: React.MouseEvent<HTMLButtonElement, MouseEvent>, next: string) => {
+    setInitiativeList((prevList) => {
+      const currentIndex = prevList.findIndex(pawn => pawn.name === currentTurn);
+      let nextIndex: number;
+      if (next === "bottom") {
+        nextIndex = prevList.length - 1;
+      } else if (next === "top") {
+        nextIndex = 0;
+      } else if (currentIndex !== -1) {
+        nextIndex = next === "next" ? currentIndex + 1 : currentIndex - 1;
+        if (nextIndex >= prevList.length) {
+          nextIndex = 0;
+        } else if (nextIndex < 0) {
+          nextIndex = prevList.length - 1;
+        }
+      }
+      else
+        return prevList;
+      const newCurrentTurn = prevList[nextIndex].name;
+      setCurrentTurn(newCurrentTurn);
+      console.log(newCurrentTurn);
+      return prevList;
+    });
+  }
+
+  const handleDeleteFromInitiative = async ( _event: React.MouseEvent<HTMLButtonElement, MouseEvent>, pawn: InitiativeListItem, index: number) => {
+    setInitiativeList((prevList) => 
+      prevList.filter((_, i) => i !== index)
+    );
+    try {
+      const response = await fetch(`http://${API_URL}/games/${game.id}/delete-from-initiative/${pawn.name}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update pawn picture");
+      }
+    } catch(error) { 
+      console.log(error);
+    }
+  };
+
+  const handlePawnController = (_event: React.MouseEvent<HTMLButtonElement, MouseEvent>, pawnName: string) => {
+    const selectedPawn = pawns.find(p => p.pawn_name === pawnName);
+    if (selectedPawn) {
+      pawnController.handleAutoMode(selectedPawn);
+    } else
+        console.log(`Pawn with name ${pawnName} not found.`);
+  }
+
+  const handlePointerDown = (event: FederatedPointerEvent) => {
+    const { x, y } = event.global;
+    setStartPoint({ x, y });
+    setEndPoint({ x, y });
+    setIsDrawing(true);
+  };
+
+  const handlePointerMove = (event: FederatedPointerEvent) => {
+    if (!isDrawing || !startPoint) return;
+    
+    const { x, y } = event.global;
+    setEndPoint({ x, y });
+    
+    const deltaX = Math.abs(x - startPoint.x);
+    const deltaY = Math.abs(y - startPoint.y);
+    const distanceInSquares = Math.round(
+      Math.sqrt(deltaX ** 2 + deltaY ** 2) / squareSize
+    );
+    setDistance(distanceInSquares);
+  };
+
+  const handlePointerUp = () => {
+    setIsDrawing(false);
+    if (!startPoint || !endPoint) {
+      setStartPoint(null);
+      setEndPoint(null);
+      setDistance(null);
     }
   };
 
@@ -610,6 +776,7 @@ const GameMap = () => {
           }}>
             <PersonAddIcon/>
           </Button>
+
         )}
 
         {layer === 'obstacle' && (
@@ -625,6 +792,21 @@ const GameMap = () => {
 
           </ButtonGroup>
         )}
+      {layer === 'token' && (
+        <ToggleButtonGroup
+        orientation='vertical'
+          color='primary'
+          value={tool}
+          exclusive
+          onChange={handleTool}>
+          <ToggleButton value={'token'}>
+            <GroupIcon/>
+          </ToggleButton>
+          <ToggleButton value={'measure'}>
+            <StraightenIcon/>
+          </ToggleButton>
+        </ToggleButtonGroup>
+      )}
       <Box
       sx={{
         width: 50,
@@ -633,13 +815,20 @@ const GameMap = () => {
         flexDirection: 'column',
         gap: 1
       }}>
-
-        <Switch
-          checked={isFog}
-          onChange={handleFog}
-          inputProps={{'aria-label': 'controlled'}}
-        />
-
+        <Tooltip title="initiative">
+          <Switch
+            checked={isInitiative}
+            onChange={handleInitiative}
+            inputProps={{'aria-label': 'controlled'}}
+          />
+        </Tooltip>
+        <Tooltip title="fog of war">
+          <Switch
+            checked={isFog}
+            onChange={handleFog}
+            inputProps={{'aria-label': 'controlled'}}
+          />
+        </Tooltip>
         <ToggleButtonGroup
           orientation='vertical'
           color='primary'
@@ -716,9 +905,13 @@ const GameMap = () => {
         width={1920} 
         height={1080} 
         ref={stageRef} 
-        
         options={{ background: 0xffffff }}>
           <Container
+            interactive
+            pointerdown={handlePointerDown}
+            pointermove={handlePointerMove}
+            pointerup={handlePointerUp}
+            pointerupoutside={handlePointerUp}
             scale={zoom} 
             pivot={pivot}
             position={position}
@@ -776,7 +969,35 @@ const GameMap = () => {
               />
               </Container>
             ))}
-            <Graphics ref={fogGraphicsRef} />
+            <Graphics draw={renderFog} ref={fogGraphicsRef} />
+            {startPoint && endPoint && (
+              <>
+                <Graphics
+                  draw={graphics => {
+                    graphics.clear();
+                    graphics.lineStyle(2, 0xffd700);
+                    graphics.moveTo(startPoint.x, startPoint.y);
+                    graphics.lineTo(endPoint.x, endPoint.y);
+                    
+                    if (distance !== null) {
+                      // Draw background for text
+                      graphics.lineStyle(0);
+                      graphics.beginFill(0xffffff, 0.8);
+                      graphics.drawRect(endPoint.x + 5, endPoint.y - 20, 60, 20);
+                      graphics.endFill();
+                    }
+                  }}
+                />
+                {distance !== null && (
+                  <Text
+                    text={`${distance} sq`}
+                    x={endPoint.x + 10}
+                    y={endPoint.y - 15}
+                    style={textStyle}
+                  />
+                )}
+              </>
+            )}
           </Container>
         </Stage>
       </Box>
@@ -911,7 +1132,7 @@ const GameMap = () => {
               <ToggleButton value={150}>3x3</ToggleButton>
               <ToggleButton value={200}>4x4</ToggleButton>
             </ToggleButtonGroup>
-            <Button>Roll Initiative</Button>
+            <Button onClick={(e) => handleAddToInitiative(e,pawns[selectedPawnIndex].pawn_name, pawns[selectedPawnIndex].initiative, pawns[selectedPawnIndex].ai_enabled)}>Roll Initiative</Button>
             <input
               type="file"
               accept="image/*"
@@ -948,6 +1169,7 @@ const GameMap = () => {
               <Typography variant="body1">Damage Bonus: {pawns[hoveredPawnIndex].damage_bonus}</Typography>
           </Paper>
         )}
+        {isInitiative && (
         <Paper sx={{ 
             width: 300, 
             height: '20vh',
@@ -959,20 +1181,28 @@ const GameMap = () => {
             backdropFilter: 'blur(5px)',
             outline: " 1px solid indigo" }}>
             <Box sx={{display: 'flex', justifyContent: 'center'}}>
-              <Button>Prev</Button>
-              <Button>Next</Button>
+            <Button onClick={(e) => handleCurrentInitiative(e, "bottom")}>Bottom</Button>
+              <Button onClick={(e) => handleCurrentInitiative(e, "prev")}>Prev</Button>
+              <Button onClick={(e) => handleCurrentInitiative(e, "next")}>Next</Button>
+              <Button onClick={(e) => handleCurrentInitiative(e, "top")}>Top</Button>
             </Box>
           <List dense={true} component='nav' sx={{overflowY: 'auto', flexGrow: 1}}>
             {initiativeList.map((pawn, index) => (
               <ListItemButton key={index} selected={currentTurn === pawn.name}>
                 <ListItemText primary={pawn.name} secondary={pawn.initiative.toString()} />
-                <IconButton edge="end" aria-label="delete">
+                {pawn.ai_enabled && (
+                <IconButton edge="start" aria-label="make turn" onClick={(e) => handlePawnController(e, pawn.name)} >
+                  <AutoModeIcon />
+                </IconButton>
+                )}
+                <IconButton edge="end" aria-label="delete" onClick={(e) => handleDeleteFromInitiative(e, pawn, index)}>
                   <DeleteIcon />
                 </IconButton>
               </ListItemButton>
             ))}
           </List>
         </Paper>
+        )}
       </Paper>
     </Box>
   );
