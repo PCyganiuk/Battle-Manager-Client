@@ -9,6 +9,9 @@ lerna-debug.log*
 
 .env
 
+tsconfig.app.tsbuildinfo
+tsconfig.node.tsbuildinfo
+
 node_modules
 dist
 dist-ssr

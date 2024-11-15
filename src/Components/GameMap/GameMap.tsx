@@ -1,13 +1,13 @@
-import { Graphics as PixiGraphics, Rectangle, FederatedPointerEvent } from 'pixi.js';
+import { Graphics as PixiGraphics, Rectangle,Container as PixiContainer, FederatedPointerEvent } from 'pixi.js';
 import { Stage, Container, Sprite, Graphics, Text } from '@pixi/react';
-import React, { useRef, useState, useEffect, MouseEventHandler } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import MapIcon from '@mui/icons-material/Map';
 import PersonIcon from '@mui/icons-material/Person';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LandscapeIcon from '@mui/icons-material/Landscape';
 import useWebSocket from 'react-use-websocket'
 import Grid from '@mui/material/Grid2';
-import { Box, List, IconButton, ListItemText, Typography, Button, Paper, Dialog, DialogContent, DialogActions, DialogTitle, TextField, ToggleButtonGroup, ToggleButton, ButtonGroup, Switch, InputAdornment, Divider, ListItemButton, Tooltip } from '@mui/material';
+import { Box, List, IconButton, ListItemText, Typography, Button, Paper, Dialog, DialogContent, DialogActions, DialogTitle, TextField, ToggleButtonGroup, ToggleButton, ButtonGroup, Switch, InputAdornment, ListItemButton, Tooltip } from '@mui/material';
 import { InitiativeListItem, ObstacleProps, Pawn, Point, textStyle } from '../types.ts';
 import { MuiColorInput } from 'mui-color-input';
 import { useLocation } from 'react-router-dom';
@@ -19,12 +19,13 @@ import AutoModeIcon from '@mui/icons-material/AutoMode';
 import PawnController from './PawnController.ts';
 import GroupIcon from '@mui/icons-material/Group';
 import StraightenIcon from '@mui/icons-material/Straighten';
-import DistanceLine from './DistanceLine.tsx';
+//import DistanceLine from './DistanceLine.tsx';
 //import CloudIcon from '@mui/icons-material/Cloud';
 
 const GameMap = () => {
   const API_URL = '127.0.0.1:8000';
   const location = useLocation();
+  const containerRef = useRef<PixiContainer>(null);
   const { game } = location.state || {};
   const [isFog, setIsFog] = useState(game.is_fog);
   const [isDragging, setIsDragging] = useState(false);
@@ -45,7 +46,7 @@ const GameMap = () => {
   const [obstacles, setObstacles] = useState<ObstacleProps[]>([]);
   const [obstacleDialogOpen, setObstacleDialogOpen] = useState(false);
   const [selectedPawnIndex, setSelectedPawn] = useState<number | null>(null);
-  const [tool, setTool] = useState("measure"); 
+  const [tool, setTool] = useState("token"); 
   const squareSize = 50;
   const pawnController = new PawnController(pawns, obstacles, squareSize, setPawns, setObstacles);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
@@ -92,7 +93,7 @@ const GameMap = () => {
   const openObstacleDialog = () => setObstacleDialogOpen(true);
   const closeObstacleDialog = () => setObstacleDialogOpen(false);
 
-  const { sendMessage, lastMessage, readyState } = useWebSocket(socketUrl, {
+  const { lastMessage } = useWebSocket(socketUrl, {
     onOpen: () => console.log('Websocket connection opened'),
     onClose: () => console.log('WebSocket connection closed'),
     onError: (error) => console.error('WebSocket error:', error),
@@ -383,6 +384,7 @@ const GameMap = () => {
   };
 
   const handlePawnDimensions = async (_event: React.MouseEvent<HTMLElement>, newDim: number, index: number) => {
+    console.log(JSON.stringify({ dimension_x: newDim }));
     setPawns((prevPawns) => {
       const updatedPawns = [...prevPawns];
       updatedPawns[index] = {
@@ -392,7 +394,7 @@ const GameMap = () => {
       return updatedPawns;
     });
     try {
-      const response = await fetch(`http://${API_URL}/pawns/modify-pawn/${pawns[index].id}`, {
+      const response = await fetch(`http://${API_URL}/${game.id}/pawns/modify-pawn/${pawns[index].id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -641,7 +643,7 @@ const GameMap = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ "name":pawn.name, "initiative": pawn.initiative  }),
+          body: JSON.stringify({ "name":pawn.name, "initiative": pawn.initiative, "ai_enabled": pawn.ai_enabled  }),
         }
       );
   
@@ -706,18 +708,22 @@ const GameMap = () => {
   }
 
   const handlePointerDown = (event: FederatedPointerEvent) => {
-    const { x, y } = event.global;
-    setStartPoint({ x, y });
-    setEndPoint({ x, y });
-    setIsDrawing(true);
+    if (containerRef.current) {
+      const { x, y } = containerRef.current.toLocal(event.global);
+      setStartPoint({ x, y });
+      setEndPoint({ x, y });
+      setIsDrawing(true);
+    }
   };
 
   const handlePointerMove = (event: FederatedPointerEvent) => {
-    if (!isDrawing || !startPoint) return;
+    if (!isDrawing || !startPoint || !containerRef.current) return;
     
-    const { x, y } = event.global;
+    // Convert global coordinates to container's local coordinates
+    const { x, y } = containerRef.current.toLocal(event.global);
     setEndPoint({ x, y });
-    
+  
+    // Calculate distance in squares
     const deltaX = Math.abs(x - startPoint.x);
     const deltaY = Math.abs(y - startPoint.y);
     const distanceInSquares = Math.round(
@@ -725,9 +731,10 @@ const GameMap = () => {
     );
     setDistance(distanceInSquares);
   };
-
+  
   const handlePointerUp = () => {
     setIsDrawing(false);
+    // Reset points and distance if drawing was interrupted or completed
     if (!startPoint || !endPoint) {
       setStartPoint(null);
       setEndPoint(null);
@@ -815,14 +822,14 @@ const GameMap = () => {
         flexDirection: 'column',
         gap: 1
       }}>
-        <Tooltip title="initiative">
+        <Tooltip title="initiative" placement='right' arrow>
           <Switch
             checked={isInitiative}
             onChange={handleInitiative}
             inputProps={{'aria-label': 'controlled'}}
           />
         </Tooltip>
-        <Tooltip title="fog of war">
+        <Tooltip title="fog of war" placement='right' arrow>
           <Switch
             checked={isFog}
             onChange={handleFog}
@@ -907,15 +914,24 @@ const GameMap = () => {
         ref={stageRef} 
         options={{ background: 0xffffff }}>
           <Container
+            ref={containerRef}
             interactive
-            pointerdown={handlePointerDown}
+            pointerdown={(event) => {
+              if (tool === 'measure' && layer === 'token')
+                handlePointerDown(event)}}
             pointermove={handlePointerMove}
             pointerup={handlePointerUp}
             pointerupoutside={handlePointerUp}
             scale={zoom} 
             pivot={pivot}
             position={position}
+            hitArea={new Rectangle(0, 0, squareSize * gridCols, squareSize * gridRows)}
           >
+          <Sprite
+            image={game.picture}
+            width={squareSize * gridCols}
+            height={squareSize * gridRows}
+          />
 
             < Graphics draw={drawGrid} />
             
@@ -923,6 +939,7 @@ const GameMap = () => {
             {obstacles.map((obstacle, index) => (
               <Graphics
                   key={index}
+                  hitArea={new Rectangle(obstacle.pos_x, obstacle.pos_y, obstacle.width, obstacle.height)}
                   draw={(g) => {
                       g.clear();
                       g.beginFill(obstacle.color);
@@ -930,7 +947,10 @@ const GameMap = () => {
                       g.endFill();
                   }}
                   interactive
-                  pointerdown={(event) => startDraggingObstacle(event, index)}
+                  pointerdown={(event) => {
+                    if (layer === 'obstacle') {
+                      event.stopPropagation(); 
+                      startDraggingObstacle(event, index)}}}
                   pointermove={(event) => dragObstacle(event, index)}
                   pointerup={() => stopDraggingObstacle(index)}
                   pointerupoutside={() => stopDraggingObstacle(index)}
@@ -948,13 +968,16 @@ const GameMap = () => {
                   : new Rectangle(0, 0, pawn.dimension_x, pawn.dimension_x) 
               }
               interactive
-              pointerdown={(event) => startPawnAction(event, index)}
+              pointerdown={(event) => {
+                if (layer === 'token') {
+                  startPawnAction(event, index)}}}
               pointermove={(event) => dragPawn(event, index)}
               pointerup={() => stopDraggingPawn(index)}
               pointerupoutside={() => stopDraggingPawn(index)}
               pointerover={() => {
+                if (layer === 'token') {
                 setIsOverPawn(true);
-                setHoveredPawnIndex(index);
+                setHoveredPawnIndex(index)};
               }}
               pointerout={() => {
                 setIsOverPawn(false);
@@ -969,10 +992,10 @@ const GameMap = () => {
               />
               </Container>
             ))}
-            <Graphics draw={renderFog} ref={fogGraphicsRef} />
+            <Graphics interactive hitArea={new Rectangle(0,0,0,0)} draw={renderFog} ref={fogGraphicsRef} />
             {startPoint && endPoint && (
               <>
-                <Graphics
+                <Graphics interactive
                   draw={graphics => {
                     graphics.clear();
                     graphics.lineStyle(2, 0xffd700);

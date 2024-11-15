@@ -156,7 +156,7 @@ const GameHub = () => {
                               <Typography sx={{color: 'indigo'}}>{game.game_name}</Typography>
                               {game.picture ? (
                               <img
-                                src={`data:image/png;base64,${game.picture}`}
+                                src={game.picture}
                                 style={{
                                   width: '50%', // Make image responsive
                                   height: 'auto', // Maintain aspect ratio
