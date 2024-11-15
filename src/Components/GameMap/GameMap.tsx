@@ -23,7 +23,7 @@ import StraightenIcon from '@mui/icons-material/Straighten';
 //import CloudIcon from '@mui/icons-material/Cloud';
 
 const GameMap = () => {
-  const API_URL = '127.0.0.1:8000';
+  const API_URL = 'battle-manager-api.onrender.com';
   const location = useLocation();
   const containerRef = useRef<PixiContainer>(null);
   const { game } = location.state || {};
@@ -112,7 +112,7 @@ const GameMap = () => {
 
   const fetchPawns = async () => {
     try {
-        const response = await fetch(`http://${API_URL}/pawns/${game.id}`);
+        const response = await fetch(`https://${API_URL}/pawns/${game.id}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -129,7 +129,7 @@ const GameMap = () => {
 
   const fetchObstacles = async () => {
     try {
-        const response = await fetch(`http://${API_URL}/obstacles/${game.id}`);
+        const response = await fetch(`https://${API_URL}/obstacles/${game.id}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -230,7 +230,7 @@ const GameMap = () => {
     });
     console.log(JSON.stringify({ [stat]: value }));
     try {
-      const response = await fetch(`http://${API_URL}/${game.id}/pawns/modify-pawn/${pawns[index].id}`, {
+      const response = await fetch(`https://${API_URL}/${game.id}/pawns/modify-pawn/${pawns[index].id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -267,7 +267,7 @@ const GameMap = () => {
       color: obstacleConfig.color
     }
     try {
-      const response = await fetch(`http://${API_URL}/obstacles/add/`, {
+      const response = await fetch(`https://${API_URL}/obstacles/add/`, {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json',
@@ -324,7 +324,7 @@ const GameMap = () => {
     //setPawns([...pawns, pawn]);
     console.log(JSON.stringify(dbPawn));
     try {
-      const response = await fetch(`http://${API_URL}/pawns/add/`, {
+      const response = await fetch(`https://${API_URL}/pawns/add/`, {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json',
@@ -394,7 +394,7 @@ const GameMap = () => {
       return updatedPawns;
     });
     try {
-      const response = await fetch(`http://${API_URL}/${game.id}/pawns/modify-pawn/${pawns[index].id}`, {
+      const response = await fetch(`https://${API_URL}/${game.id}/pawns/modify-pawn/${pawns[index].id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -515,7 +515,7 @@ const GameMap = () => {
               console.log(pawn)
               const updatePawnPosition = async () => {
                 try {
-                  const response = await fetch(`http://${API_URL}/pawns/new-pos/${pawn.id}`, {
+                  const response = await fetch(`https://${API_URL}/pawns/new-pos/${pawn.id}`, {
                     method: "PATCH",
                     headers: {
                       "Content-Type": "application/json",
@@ -546,7 +546,7 @@ const GameMap = () => {
               //const { x, y } = snapToGrid(obstacle.pos_x, obstacle.pos_y);
               const updateObstaclePosition = async () => {
                 try {
-                  const response = await fetch(`http://${API_URL}/obstacles/new-pos/${obstacle.id}`, {
+                  const response = await fetch(`https://${API_URL}/obstacles/new-pos/${obstacle.id}`, {
                     method: "PATCH",
                     headers: {
                       "Content-Type": "application/json",
@@ -599,7 +599,7 @@ const GameMap = () => {
         });
         console.log(JSON.stringify({ "picture": base64Image as string }));
         try {
-          const response = await fetch(`http://${API_URL}/${game.id}/pawns/modify-pawn/${pawns[index].id}`, {
+          const response = await fetch(`https://${API_URL}/${game.id}/pawns/modify-pawn/${pawns[index].id}`, {
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
@@ -637,7 +637,7 @@ const GameMap = () => {
     console.log(JSON.stringify({ pawn }));
     try {
       const response = await fetch(
-        `http://${API_URL}/games/${game.id}/add-to-initiative`,
+        `https://${API_URL}/games/${game.id}/add-to-initiative`,
         {
           method: "PATCH",
           headers: {
@@ -685,7 +685,7 @@ const GameMap = () => {
       prevList.filter((_, i) => i !== index)
     );
     try {
-      const response = await fetch(`http://${API_URL}/games/${game.id}/delete-from-initiative/${pawn.name}`, {
+      const response = await fetch(`https://${API_URL}/games/${game.id}/delete-from-initiative/${pawn.name}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
