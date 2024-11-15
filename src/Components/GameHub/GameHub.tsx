@@ -34,7 +34,7 @@ const GameHub = () => {
         }
         
         const jwtToken = localStorage.getItem('token');
-        const response = await fetch(`http://127.0.0.1:8000/games/${userId}`, {
+        const response = await fetch(`https://battle-manager-api.onrender.com/games/${userId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
