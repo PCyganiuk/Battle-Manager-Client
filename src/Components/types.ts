@@ -69,7 +69,7 @@ export interface DistanceLineProps {
 }
   
 export const textStyle = new TextStyle({
-    fontSize: 12,
+    fontSize: 40,
     fill: '#000000',
     align: 'left',
     fontFamily: 'Arial'

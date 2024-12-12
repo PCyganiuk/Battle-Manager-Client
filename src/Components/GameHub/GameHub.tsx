@@ -1,4 +1,5 @@
-import { AppBar,ButtonGroup, Box, Container, Paper, Tab, Tabs, Toolbar, Grid2, CircularProgress, Typography, Button, Tooltip } from "@mui/material"
+import { AppBar,ButtonGroup, Box, Container, Paper, Tab, Tabs, Toolbar,TextField, CircularProgress, Typography, Button,Grid2, List, ListItemButton, ListItemText, Tooltip, Dialog, DialogContent, DialogActions, DialogTitle } from "@mui/material"
+import Grid from '@mui/material/Grid2';
 import React, { useState, useEffect} from "react";
 import DeleteIcon from '@mui/icons-material/Delete';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -8,11 +9,32 @@ import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import { useNavigate } from "react-router-dom";
 import{ GameData } from '../types'
 
+interface PlayerTransferDialogProps {
+  addPawnDialogOpen: boolean;
+  closeAddPawnDialog: () => void;
+  handleSave: (gameData: {
+    gameName: string;
+    width: number;
+    height: number;
+    selectedPlayers: string[];
+  }) => void;
+}
+
 const GameHub = () => {
   const [value, setValue] = useState(0);
   const [games, setGames] = useState<GameData[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [addPawnDialogOpen, setAddPawnDialogOpen] = useState(false);
+  const [availablePlayers, setAvailablePlayers] = useState<string[]>([
+    'Player1',
+    'Player2',
+    'Player3',
+    'Player4',
+  ]);
+
+  const openAddPawnDialog = () => setAddPawnDialogOpen(true);
+  const closeAddPawnDialog = () => setAddPawnDialogOpen(false);
 
     const runGame = async (game: GameData) => {
       localStorage.setItem('gameId', game.id)
@@ -23,7 +45,7 @@ const GameHub = () => {
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
   };
-
+  
   useEffect(() => {
     const fetchGames = async () => {
       setLoading(true);
@@ -79,6 +101,58 @@ const GameHub = () => {
       backgroundPosition: "center",
       backgroundSize: "cover"
     }}>
+
+    <Dialog open={addPawnDialogOpen} onClose={closeAddPawnDialog}>
+      <DialogTitle align="center">Modify Game</DialogTitle>
+      <DialogContent>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',  // Center all children horizontally
+            justifyContent: 'center',  // Center all children vertically
+            gap: 2,  // Add space between elements
+            padding: 2
+          }}
+        >
+          {/* Game Name */}
+          <TextField label="Game Name" fullWidth variant="outlined" sx={{ maxWidth: '400px' }} />
+
+          {/* Width and Height */}
+          <Grid container spacing={2} justifyContent="center">
+            <Grid size={5}>
+              <TextField label="Width" type="number" fullWidth variant="outlined" />
+            </Grid>
+            <Grid size={5}>
+              <TextField label="Height" type="number" fullWidth variant="outlined" />
+            </Grid>
+          </Grid>
+
+          
+          
+            <Grid  size={2}>
+              <List sx={{ border: '1px solid #ccc', borderRadius: '4px', maxHeight: 200, width: 300, overflow: 'auto' }}>
+                <Typography align="center">Players</Typography>
+                {availablePlayers.map((player, index) => (
+                  <ListItemButton key={index}>
+                    <ListItemText primary={player} secondary={"ADD"} />
+                  </ListItemButton>
+                ))}
+              </List>
+            </Grid>
+          
+          {/* Upload Image Button */}
+          <Button variant="contained" component="label">
+            Upload Image
+            <input type="file" hidden />
+          </Button>
+        </Box>
+      </DialogContent>
+      <DialogActions sx={{ justifyContent: 'center' }}>
+        <Button onClick={closeAddPawnDialog} color="primary">Cancel</Button>
+        <Button color="primary">Save</Button>
+      </DialogActions>
+    </Dialog>
       <Container
       sx={{
           height: "100vh",
@@ -176,7 +250,7 @@ const GameHub = () => {
 
                               <ButtonGroup aria-label="Basic button group">
                                 <Button color="success" onClick={() => runGame(game)}><RocketLaunchIcon/></Button>
-                                <Button><TuneIcon/></Button>
+                                <Button onClick={openAddPawnDialog}><TuneIcon/></Button>
                                 <Button color="error"><DeleteIcon /></Button>
                               </ButtonGroup>
                           </Paper>
@@ -186,7 +260,57 @@ const GameHub = () => {
                   )}
                 </Box>
               )}
-              {value === 1 && <div>Player Games</div>}
+              {value === 1 && <Box>
+                {loading ? (
+                  <CircularProgress />
+                ) : (
+                  <Grid2 container spacing={2} sx={{ marginTop: 2 }}>
+                    {games.map((game) => (
+                      <Grid2 key={game.grid_id} >
+                        <Paper sx={{ 
+                          padding: 2, 
+                          textAlign: 'center' ,
+                          alignItems: 'center',
+                          width: 200,
+                          height: 200,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          flexGrow: 1,
+                          justifyContent: 'space-between',
+                          borderRadius: "20px",
+                          overflow: 'hidden',
+                          outline: '1px solid indigo',     
+                          }}>
+                            <Typography sx={{color: 'indigo'}}>{game.game_name}</Typography>
+                            {game.picture ? (
+                            <img
+                              src={game.picture}
+                              style={{
+                                width: '50%', // Make image responsive
+                                height: 'auto', // Maintain aspect ratio
+                                borderRadius: '10px', // Optional: add some border radius
+                                marginBottom: '10px' // Optional: add space below the image
+                              }}
+                            />) : (
+                              <img
+                                src="/assets/smolbartek.png"
+                                style={{
+                                  width: '50%',
+                                  height: 'auto',
+                                  objectFit: 'contain',
+                                }}
+                              />
+                            )}
+
+                            <ButtonGroup aria-label="Basic button group">
+                              <Button color="success" sx={{width: 200}} onClick={() => runGame(game)}><RocketLaunchIcon/></Button>
+                            </ButtonGroup>
+                        </Paper>
+                      </Grid2>
+                    ))}
+                  </Grid2>
+                )}
+              </Box>}
             </Box>
           </Paper>
           <Box sx={{
@@ -217,6 +341,6 @@ const GameHub = () => {
           </Box>
       </Container>
   </Box>
-}
+};
 
-export default GameHub
+export default GameHub;

@@ -998,7 +998,7 @@ const GameMap = () => {
                 <Graphics interactive
                   draw={graphics => {
                     graphics.clear();
-                    graphics.lineStyle(2, 0xffd700);
+                    graphics.lineStyle(4, 0xffd700);
                     graphics.moveTo(startPoint.x, startPoint.y);
                     graphics.lineTo(endPoint.x, endPoint.y);
                     
@@ -1006,14 +1006,14 @@ const GameMap = () => {
                       // Draw background for text
                       graphics.lineStyle(0);
                       graphics.beginFill(0xffffff, 0.8);
-                      graphics.drawRect(endPoint.x + 5, endPoint.y - 20, 60, 20);
+                      graphics.drawRect(endPoint.x + 5, endPoint.y - 20, 100, 50);
                       graphics.endFill();
                     }
                   }}
                 />
                 {distance !== null && (
                   <Text
-                    text={`${distance} sq`}
+                    text={`${distance * 5} ft`}
                     x={endPoint.x + 10}
                     y={endPoint.y - 15}
                     style={textStyle}
@@ -1183,11 +1183,14 @@ const GameMap = () => {
             borderRadius: "20px",
             backgroundColor: 'rgba(255, 255, 255, 0.3)',
             backdropFilter: 'blur(5px)',
-            outline: " 1px solid indigo" }}>
-              <Typography variant="h6">{pawns[hoveredPawnIndex].pawn_name} Statistics</Typography>
-              <Typography variant="body1">HP: {pawns[hoveredPawnIndex].hit_points}</Typography>
-              <Typography variant="body1">Initiative: {pawns[hoveredPawnIndex].initiative}</Typography>
-              <Typography variant="body1">AC: {pawns[hoveredPawnIndex].armor_class}</Typography>
+            outline: " 1px solid indigo",
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center' }}>
+              <Typography variant="h6">{pawns[hoveredPawnIndex].pawn_name}'s Statistics</Typography>
+              <Typography variant="body1">Hit Points: {pawns[hoveredPawnIndex].hit_points}</Typography>
+              <Typography variant="body1">Armour Class: {pawns[hoveredPawnIndex].armor_class}</Typography>
               <Typography variant="body1">Attack Bonus: {pawns[hoveredPawnIndex].attack_bonus}</Typography>
               <Typography variant="body1">Damage Bonus: {pawns[hoveredPawnIndex].damage_bonus}</Typography>
           </Paper>
@@ -1195,7 +1198,7 @@ const GameMap = () => {
         {isInitiative && (
         <Paper sx={{ 
             width: 300, 
-            height: '20vh',
+            height: '30vh',
             zIndex: 10,
             display: 'flex',
             flexDirection: 'column',

@@ -1,6 +1,7 @@
 import { Button, Container, Paper, Box } from "@mui/material"
 import './App.css';
 import Login from '../Login/Login';
+import Register from '../Register/Register';
 import GameHub from '../GameHub/GameHub';
 import GameMap from '../GameMap/GameMap';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
@@ -28,6 +29,10 @@ const Home = () => {
 
   const goToLogin = () => {
     navigate('/login');
+  }
+
+  const goToRegister = () => {
+    navigate('/register');
   }
 
   useEffect(() => {
@@ -81,8 +86,8 @@ const Home = () => {
       backdropFilter: 'blur(5px)'
       }}>
       
-      Are you DM who wants to take his combat encounters to the next level?
-       Create new exctiting battlefields an invite your friends.
+      Are you GM who wants to take his combat encounters to the next level?
+       Create new exciting battlefields and invite your friends.
        
     </Paper>
     <Box
@@ -92,7 +97,7 @@ const Home = () => {
           marginTop: 1,
         }}
       >
-        <Button variant="contained" color="primary" sx={{width: "200px", borderRadius: "20px", backdropFilter: 'blur(10px)',textEmphasisColor: "grey",'&:hover': {color: "black",} }}>
+        <Button variant="contained" color="primary" sx={{width: "200px", borderRadius: "20px", backdropFilter: 'blur(10px)',textEmphasisColor: "grey",'&:hover': {color: "black",} }} onClick={goToRegister}>
           Register
         </Button>
         <Button variant="outlined" color="primary" sx={{width: "200px", borderRadius: "20px"}} onClick={goToLogin}>
@@ -111,6 +116,7 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/game-hub" element={<GameHub />} />
         <Route path="/game-map" element={<GameMap />}  />
+        <Route path="/register" element={<Register />} />
       </Routes>
     </Router>
   );

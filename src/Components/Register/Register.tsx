@@ -2,7 +2,7 @@ import { Box, Button, TextField, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const Login = () => {
+const Register = () => {
   const [username, setUsername] = useState('');
   const [password,setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState({username: false, password:false, usernameMessage: '', passwordMessage: ''});
@@ -66,10 +66,30 @@ const Login = () => {
         justifyContent: 'center',
         height: '100vh'}}>
       <Typography variant="h4" sx={{ mb: 3, color: 'grey'}}>
-        Login
+        Register
       </Typography>
       <TextField
         label="Username"
+        variant="outlined"
+        type="username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        error={errorMessage.username}
+        helperText={errorMessage.usernameMessage}
+        sx={{ 
+          mb: 2, 
+          width: "300px",
+          backgroundColor: 'rgba(255, 255, 255, 0.5)', // White with transparency
+          backdropFilter: 'blur(5px)', // Apply blur effect
+          borderRadius: '8px', // Optional: for rounded corners
+          '& .MuiOutlinedInput-root': {
+          backgroundColor: 'transparent', // Make input background transparent
+          borderRadius: '8px', // Match input's border radius with the text field
+          }, 
+        }}
+      />
+      <TextField
+        label="email address"
         variant="outlined"
         type="username"
         value={username}
@@ -111,10 +131,10 @@ const Login = () => {
         }}
       />
       <Button variant="outlined" color="primary" sx={{width: "200px", borderRadius: "20px"}} onClick={handleLogin}>
-        Login
+        Register
       </Button>
     </Box>
     );
 };
 
-export default Login;
+export default Register;
