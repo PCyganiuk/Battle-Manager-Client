@@ -4,20 +4,22 @@ import { useNavigate } from 'react-router-dom';
 
 const Register = () => {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password,setPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState({username: false, password:false, usernameMessage: '', passwordMessage: ''});
+  const [errorMessage, setErrorMessage] = useState({username : false, password : false, email : false, usernameMessage : '', passwordMessage : '', emailMessage : ''});
   const navigate = useNavigate();
 
-  const handleLogin = async () => {
-    setErrorMessage({ username: false, password: false, usernameMessage: '', passwordMessage: ''});
+  const handleRegister = async () => {
+    setErrorMessage({ username : false, password : false, email : false, usernameMessage : '', passwordMessage : '', emailMessage : ''});
     try {
-      const response = await fetch('https://battle-manager-api.onrender.com/users/login', {
+      const response = await fetch('http://127.0.0.1:8000/users/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           username,
+          email,
           password,
         }),
       });
@@ -25,33 +27,27 @@ const Register = () => {
       if (!response.ok) {
         const errorData = await response.json()
         const errorDetail = errorData.detail;
-        if (errorDetail.includes("User not found")){
-          setErrorMessage({ username: true, password: false, usernameMessage: errorDetail, passwordMessage: ''});
+        if (errorDetail.includes("Username already exists")){
+          setErrorMessage({ username : true, password : false, email : false, usernameMessage : errorDetail, passwordMessage : '', emailMessage : ''});
         }
-        else if (errorDetail.includes("Wrong password")){
-          setErrorMessage({ username: false, password: true, usernameMessage: '', passwordMessage: errorDetail});
+        else if (errorDetail.includes("Account with that email already exists")){
+          setErrorMessage({ username: false, password: false, email : true, usernameMessage: '', passwordMessage: '', emailMessage : errorDetail});
         }
         return;
       }
 
       const data = await response.json();
-      
-      const token = data.access_token;
-      const userId = data.user_id;
 
-      localStorage.setItem('token', token);
-      localStorage.setItem('userId',userId);
-
-      console.log('Login successful:', data); //TODO delete this in prod
-      navigate('/game-hub');
+      console.log('Register successful:', data); //TODO delete this in prod
+      navigate('/login');
 
     } catch (error) {
-      console.error('Error logging in:', error);
+      console.error('Error registering:', error);
     }
   };
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
-      handleLogin();
+      handleRegister();
     }
   }; 
 
@@ -91,11 +87,11 @@ const Register = () => {
       <TextField
         label="email address"
         variant="outlined"
-        type="username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        error={errorMessage.username}
-        helperText={errorMessage.usernameMessage}
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        error={errorMessage.email}
+        helperText={errorMessage.emailMessage}
         sx={{ 
           mb: 2, 
           width: "300px",
@@ -130,7 +126,7 @@ const Register = () => {
           
         }}
       />
-      <Button variant="outlined" color="primary" sx={{width: "200px", borderRadius: "20px"}} onClick={handleLogin}>
+      <Button variant="outlined" color="primary" sx={{width: "200px", borderRadius: "20px"}} onClick={handleRegister}>
         Register
       </Button>
     </Box>

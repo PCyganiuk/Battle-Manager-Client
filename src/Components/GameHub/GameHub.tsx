@@ -1,4 +1,4 @@
-import { AppBar,ButtonGroup, Box, Container, Paper, Tab, Tabs, Toolbar,TextField, CircularProgress, Typography, Button,Grid2, List, ListItemButton, ListItemText, Tooltip, Dialog, DialogContent, DialogActions, DialogTitle } from "@mui/material"
+import { AppBar,ButtonGroup, Box, Container, Paper, Tab, Tabs, Toolbar,TextField, CircularProgress, Typography, Button,Grid2,  Tooltip, Dialog, DialogContent, DialogActions, DialogTitle } from "@mui/material"
 import Grid from '@mui/material/Grid2';
 import React, { useState, useEffect} from "react";
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -9,29 +9,12 @@ import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import { useNavigate } from "react-router-dom";
 import{ GameData } from '../types'
 
-interface PlayerTransferDialogProps {
-  addPawnDialogOpen: boolean;
-  closeAddPawnDialog: () => void;
-  handleSave: (gameData: {
-    gameName: string;
-    width: number;
-    height: number;
-    selectedPlayers: string[];
-  }) => void;
-}
-
 const GameHub = () => {
   const [value, setValue] = useState(0);
   const [games, setGames] = useState<GameData[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [addPawnDialogOpen, setAddPawnDialogOpen] = useState(false);
-  const [availablePlayers, setAvailablePlayers] = useState<string[]>([
-    'Player1',
-    'Player2',
-    'Player3',
-    'Player4',
-  ]);
 
   const openAddPawnDialog = () => setAddPawnDialogOpen(true);
   const closeAddPawnDialog = () => setAddPawnDialogOpen(false);
@@ -56,7 +39,7 @@ const GameHub = () => {
         }
         
         const jwtToken = localStorage.getItem('token');
-        const response = await fetch(`https://battle-manager-api.onrender.com/games/${userId}`, {
+        const response = await fetch(`http://127.0.0.1:8000/games/${userId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -127,19 +110,6 @@ const GameHub = () => {
               <TextField label="Height" type="number" fullWidth variant="outlined" />
             </Grid>
           </Grid>
-
-          
-          
-            <Grid  size={2}>
-              <List sx={{ border: '1px solid #ccc', borderRadius: '4px', maxHeight: 200, width: 300, overflow: 'auto' }}>
-                <Typography align="center">Players</Typography>
-                {availablePlayers.map((player, index) => (
-                  <ListItemButton key={index}>
-                    <ListItemText primary={player} secondary={"ADD"} />
-                  </ListItemButton>
-                ))}
-              </List>
-            </Grid>
           
           {/* Upload Image Button */}
           <Button variant="contained" component="label">
