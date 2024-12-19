@@ -12,7 +12,7 @@ const Register = () => {
   const handleRegister = async () => {
     setErrorMessage({ username : false, password : false, email : false, usernameMessage : '', passwordMessage : '', emailMessage : ''});
     try {
-      const response = await fetch('http://127.0.0.1:8000/users/register', {
+      const response = await fetch('https://battle-ready-fdfec7b7e9hndgfp.polandcentral-01.azurewebsites.net/users/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
