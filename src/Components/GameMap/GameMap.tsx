@@ -13,7 +13,7 @@ import LeftPanel from './LeftPanel.tsx';
 //import CloudIcon from '@mui/icons-material/Cloud';
 
 const GameMap = () => {
-  const API_URL = 'http://127.0.0.1:8000';
+  const API_URL = 'https://battle-ready-fdfec7b7e9hndgfp.polandcentral-01.azurewebsites.net';
   const location = useLocation();
   const containerRef = useRef<PixiContainer>(null);
   const { game } = location.state || {};
@@ -73,7 +73,7 @@ const GameMap = () => {
   });
   const gridRows = game.dimension_y;
   const gridCols = game.dimension_x ;
-  const socketUrl = `ws://127.0.0.1:8000/ws/pawns/${game.id}`
+  const socketUrl = `ws://battle-ready-fdfec7b7e9hndgfp.polandcentral-01.azurewebsites.net/ws/pawns/${game.id}`
   
   const visionRadius = 200;
 
