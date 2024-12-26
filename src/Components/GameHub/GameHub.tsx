@@ -14,16 +14,29 @@ const GameHub = () => {
   const [games, setGames] = useState<GameData[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const [addPawnDialogOpen, setAddPawnDialogOpen] = useState(false);
+  const [modifyGameDialogOpen, setModifyGameDialogOpen] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<GameData>({} as GameData);
 
-  const openAddPawnDialog = () => setAddPawnDialogOpen(true);
-  const closeAddPawnDialog = () => setAddPawnDialogOpen(false);
+  const openModifyGameDialog = (_e: any, game: GameData) =>{
+    setSelectedGame(game);
+    setModifyGameDialogOpen(true);
+  }
 
-    const runGame = async (game: GameData) => {
-      localStorage.setItem('gameId', game.id)
-      console.log(game.id);
-        navigate('/game-map', { state: { game } });
-    }
+  const closeModifyGameDialog = () => {
+    setModifyGameDialogOpen(false);
+  }
+
+  const handleSave = () => {
+    // Add your save logic here
+    console.log('Save game:', selectedGame);
+    closeModifyGameDialog();
+  };
+
+  const runGame = async (game: GameData) => {
+    localStorage.setItem('gameId', game.id)
+    console.log(game.id);
+      navigate('/game-map', { state: { game } });
+  }
 
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -39,7 +52,7 @@ const GameHub = () => {
         }
         
         const jwtToken = localStorage.getItem('token');
-        const response = await fetch(`https://battle-ready-fdfec7b7e9hndgfp.polandcentral-01.azurewebsites.net/games/${userId}`, {
+        const response = await fetch(`${import.meta.env.VITE_REST_API_URL}/games/${userId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -85,7 +98,7 @@ const GameHub = () => {
       backgroundSize: "cover"
     }}>
 
-    <Dialog open={addPawnDialogOpen} onClose={closeAddPawnDialog}>
+    <Dialog open={modifyGameDialogOpen} onClose={closeModifyGameDialog}>
       <DialogTitle align="center">Modify Game</DialogTitle>
       <DialogContent>
         <Box
@@ -99,15 +112,34 @@ const GameHub = () => {
           }}
         >
           {/* Game Name */}
-          <TextField label="Game Name" fullWidth variant="outlined" sx={{ maxWidth: '400px' }} />
+          <TextField 
+          label="Game Name" 
+          fullWidth 
+          variant="outlined" 
+          sx={{ maxWidth: '400px' }} 
+          value={selectedGame?.game_name || ''}
+              onChange={(e) => setSelectedGame({ ...selectedGame, game_name: e.target.value })}
+          />
 
           {/* Width and Height */}
           <Grid container spacing={2} justifyContent="center">
             <Grid size={5}>
-              <TextField label="Width" type="number" fullWidth variant="outlined" />
+              <TextField 
+              label="Width" 
+              type="number" 
+              fullWidth 
+              variant="outlined"
+              value={selectedGame?.dimension_x || ''}
+              onChange={(e) => setSelectedGame({ ...selectedGame, dimension_x: Number(e.target.value) })} />
             </Grid>
             <Grid size={5}>
-              <TextField label="Height" type="number" fullWidth variant="outlined" />
+              <TextField 
+              label="Height" 
+              type="number" 
+              fullWidth 
+              variant="outlined" 
+              value={selectedGame?.dimension_y || ''}
+              onChange={(e) => setSelectedGame({ ...selectedGame, dimension_y: Number(e.target.value) })}/>
             </Grid>
           </Grid>
           
@@ -119,8 +151,8 @@ const GameHub = () => {
         </Box>
       </DialogContent>
       <DialogActions sx={{ justifyContent: 'center' }}>
-        <Button onClick={closeAddPawnDialog} color="primary">Cancel</Button>
-        <Button color="primary">Save</Button>
+        <Button onClick={closeModifyGameDialog} color="primary">Cancel</Button>
+        <Button onClick={handleSave} color="primary">Save</Button>
       </DialogActions>
     </Dialog>
       <Container
@@ -220,8 +252,8 @@ const GameHub = () => {
 
                               <ButtonGroup aria-label="Basic button group">
                                 <Button color="success" onClick={() => runGame(game)}><RocketLaunchIcon/></Button>
-                                <Button onClick={openAddPawnDialog}><TuneIcon/></Button>
-                                <Button color="error"><DeleteIcon /></Button>
+                                <Button onClick={(e) => openModifyGameDialog(e, game)}><TuneIcon/></Button>
+                                <Button onClick={handleSave} color="error"><DeleteIcon /></Button>
                               </ButtonGroup>
                           </Paper>
                         </Grid2>

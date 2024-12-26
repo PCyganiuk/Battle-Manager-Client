@@ -54,6 +54,7 @@ export interface GameData {
     picture_dimension_x: number | null;
     picture_dimension_y: number | null;
     is_fog: boolean;
+    access_code: number;
 }
 
 export interface InitiativeListItem {

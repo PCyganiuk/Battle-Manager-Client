@@ -11,7 +11,7 @@ const Login = () => {
   const handleLogin = async () => {
     setErrorMessage({ username: false, password: false, usernameMessage: '', passwordMessage: ''});
     try {
-      const response = await fetch('https://battle-ready-fdfec7b7e9hndgfp.polandcentral-01.azurewebsites.net/users/login', {
+      const response = await fetch(`${import.meta.env.VITE_REST_API_URL}/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
